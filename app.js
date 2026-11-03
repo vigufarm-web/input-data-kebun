@@ -215,6 +215,13 @@ async function showSession() {
     message(status, 'Masuk dengan akun Laporan Kebun.');
     return;
   }
+  const admin = user.peran.includes('admin');
+  const mandor = user.peran.some(role => role.startsWith('daily_'));
+  for (const id of ['open-progress', 'open-users', 'open-harvest', 'open-milling', 'open-sales', 'open-climate']) {
+    get(id).hidden = !admin;
+  }
+  get('open-daily').hidden = !admin && !mandor;
+  get('dashboard-title').textContent = admin ? 'Dashboard Admin' : mandor ? 'Dashboard Mandor' : 'Dashboard';
   if (!user.peran.includes('admin')) {
     get('add').disabled = true;
     get('open-progress').disabled = true;
@@ -222,7 +229,7 @@ async function showSession() {
     get('open-harvest').disabled = true;
     get('open-milling').disabled = true;
     get('open-climate').disabled = true;
-    message(status, 'Progres Harian tahap pertama tersedia untuk admin. Gunakan Dashboard Laporan Kebun untuk modul sesuai akses Anda.', true);
+    message(status, mandor ? 'Buka Daily Mandor untuk mengisi rencana dan laporan sesuai divisi Anda.' : 'Modul staf sedang disiapkan. Gunakan Laporan Kebun untuk pekerjaan sesuai hak akses Anda.');
     return;
   }
   get('add').disabled = false;
@@ -440,7 +447,7 @@ get('open-harvest').addEventListener('click', () => {
   get('harvest-section-title').textContent = 'Pisang · Bibit, Panen & Packing';
   get('harvest-description').textContent = 'Catat batch bibit, panen per blok, dan hasil packing per kelas.';
   get('harvest-type-label').hidden = false;
-  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('pisang_');
+  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('pisang_') || option.value.endsWith('_penjualan');
   get('harvest-type').value = 'pisang_panen_pkk';
   harvestOffset = 0;
   refreshHarvest();
@@ -451,7 +458,7 @@ get('open-milling').addEventListener('click', () => {
   get('harvest-section-title').textContent = 'Padi · Benih, Panen & Rencana';
   get('harvest-description').textContent = 'Catat mutasi benih, gabah per petak, dan beras yang masuk setelah digiling.';
   get('harvest-type-label').hidden = false;
-  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('padi_');
+  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('padi_') || option.value.endsWith('_penjualan');
   get('harvest-type').value = 'padi_panen';
   harvestOffset = 0;
   refreshHarvest();
