@@ -20,6 +20,7 @@ let harvestOffset = 0;
 let harvestEditing = null;
 let harvestSaving = false;
 let harvestRequest;
+let salesWarningSignature = null;
 const harvestFields = {
   pisang_penjualan: [
     { key: 'no_sj', label: 'No. Surat Jalan', type: 'text' },
@@ -371,6 +372,9 @@ async function openHarvestEditor(row = null) {
   const table = get('harvest-type').value;
   harvestEditing = row;
   form.reset();
+  salesWarningSignature = null;
+  get('sales-warning').hidden = true;
+  get('sales-warning-confirm').checked = false;
   const title = table === 'pisang_penjualan' ? 'penjualan Pisang' : table === 'padi_penjualan' ? 'penjualan Padi' : table === 'pisang_handclass' ? 'Hand Class Pisang' : table === 'pisang_estimasi' ? 'estimasi panen Pisang' : table === 'pisang_bibit' ? 'batch bibit Pisang' : table === 'iklim' ? 'data iklim' : table === 'padi_benih' ? 'mutasi benih Padi' : table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : table === 'padi_panen' ? 'panen Padi' : 'panen';
   get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + title;
   const dateValue = table === 'pisang_bibit' ? row?.tanggal_datang : table === 'pisang_estimasi' ? row?.bulan : row?.tanggal;
@@ -471,6 +475,21 @@ get('harvest-next').addEventListener('click', () => { harvestOffset += pageSize;
 get('harvest-add').addEventListener('click', () => openHarvestEditor());
 get('harvest-cancel').addEventListener('click', () => get('harvest-editor').close());
 get('harvest-editor').addEventListener('cancel', event => { if (harvestSaving) event.preventDefault(); });
+
+async function findSameSalesDocument(table, noSj) {
+  const sj = (noSj || '').trim();
+  if (!sj) return [];
+  const matches = [];
+  for (let offset = 0; ; offset += 100) {
+    const query = new URLSearchParams({ q: sj, limit: '100', offset: String(offset) });
+    const page = await request('/api/records/' + table + '?' + query);
+    matches.push(...page.rows.filter(row => String(row.no_sj || '').trim().toLocaleUpperCase('id-ID') === sj.toLocaleUpperCase('id-ID') && row.id !== harvestEditing?.id));
+    if (offset + page.rows.length >= page.total) break;
+    if (!page.rows.length || offset >= 9900) throw new Error('Pemeriksaan surat jalan belum selesai. Coba lagi.');
+  }
+  return matches;
+}
+
 get('harvest-entry').addEventListener('submit', async event => {
   event.preventDefault();
   if (harvestSaving) return;
@@ -496,6 +515,22 @@ get('harvest-entry').addEventListener('submit', async event => {
   get('harvest-save').disabled = true;
   get('harvest-cancel').disabled = true;
   try {
+    if (table.endsWith('_penjualan')) {
+      const existing = await findSameSalesDocument(table, data.no_sj);
+      const needsWarning = existing.length > 0 || !String(data.no_sj || '').trim();
+      const signature = JSON.stringify({ data, matches: existing.map(row => [row.id, row.updated_at]) });
+      if (needsWarning && (signature !== salesWarningSignature || !get('sales-warning-confirm').checked)) {
+        salesWarningSignature = signature;
+        get('sales-warning-confirm').checked = false;
+        const details = existing.slice(0, 3).map(row => [row.tanggal, row.pembeli, row.jenis_barang || row.jenis || row.tipe].filter(Boolean).join(' · ')).join('; ');
+        get('sales-warning-text').textContent = existing.length
+          ? `Nomor SJ sudah ada pada ${existing.length} baris: ${details}. Periksa apakah rincian ini tambahan yang sah. Untuk mengubah data lama, pilih Revisi pada baris lama.`
+          : 'Nomor SJ kosong sehingga tidak dapat diperiksa kesamaannya. Periksa daftar penjualan sebelum menyimpan.';
+        get('sales-warning').hidden = false;
+        message(get('harvest-message'), 'Centang persetujuan setelah memeriksa, lalu tekan Simpan lagi.', true);
+        return;
+      }
+    }
     if (harvestEditing) await request('/api/t/' + table + '/' + harvestEditing.id, 'PUT', { ...data, updated_at: harvestEditing.updated_at ?? null });
     else await request('/api/t/' + table, 'POST', data);
     get('harvest-editor').close();
