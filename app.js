@@ -21,6 +21,7 @@ let harvestEditing = null;
 let harvestSaving = false;
 let harvestRequest;
 let salesWarningSignature = null;
+let currentIsAdmin = false;
 const harvestFields = {
   padi_rencana: [
     { key: 'selesai', label: 'Minggu selesai', type: 'date', required: true },
@@ -217,11 +218,14 @@ async function showSession() {
   }
   const admin = user.peran.includes('admin');
   const mandor = user.peran.some(role => role.startsWith('daily_'));
+  const sales = !mandor && user.peran.includes('penjualan');
+  currentIsAdmin = admin;
   for (const id of ['open-progress', 'open-users', 'open-harvest', 'open-milling', 'open-sales', 'open-climate']) {
     get(id).hidden = !admin;
   }
+  get('open-sales').hidden = !admin && !sales;
   get('open-daily').hidden = !admin && !mandor;
-  get('dashboard-title').textContent = admin ? 'Dashboard Admin' : mandor ? 'Dashboard Mandor' : 'Dashboard';
+  get('dashboard-title').textContent = admin ? 'Dashboard Admin' : mandor ? 'Dashboard Mandor' : sales ? 'Dashboard Penjualan' : 'Dashboard';
   if (!user.peran.includes('admin')) {
     get('add').disabled = true;
     get('open-progress').disabled = true;
@@ -229,7 +233,7 @@ async function showSession() {
     get('open-harvest').disabled = true;
     get('open-milling').disabled = true;
     get('open-climate').disabled = true;
-    message(status, mandor ? 'Buka Daily Mandor untuk mengisi rencana dan laporan sesuai divisi Anda.' : 'Modul staf sedang disiapkan. Gunakan Laporan Kebun untuk pekerjaan sesuai hak akses Anda.');
+    message(status, mandor ? 'Buka Daily Mandor untuk mengisi rencana dan laporan sesuai divisi Anda.' : sales ? 'Buka Penjualan untuk mengelola penjualan sesuai hak akses Anda.' : 'Modul staf sedang disiapkan. Gunakan Laporan Kebun untuk pekerjaan sesuai hak akses Anda.');
     return;
   }
   get('add').disabled = false;
@@ -400,8 +404,9 @@ async function openHarvestEditor(row = null) {
   form.elements.keterangan.value = row?.keterangan ?? '';
   form.elements.blok.required = table === 'pisang_panen_pkk' || table === 'pisang_handclass' || table === 'padi_panen';
   get('harvest-block-caption').textContent = table.startsWith('padi_') ? 'Petak' : 'Blok';
-  get('harvest-block-label').hidden = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table);
-  form.elements.blok.disabled = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table);
+  const skipBlock = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) || (table === 'padi_penjualan' && !currentIsAdmin);
+  get('harvest-block-label').hidden = skipBlock;
+  form.elements.blok.disabled = skipBlock;
   const fields = harvestFields[table].map(field => {
     const label = document.createElement('label');
     label.append(document.createTextNode(field.label));
@@ -424,7 +429,7 @@ async function openHarvestEditor(row = null) {
   message(get('harvest-message'), 'Memuat blok…');
   get('harvest-save').disabled = true;
   get('harvest-editor').showModal();
-  if (['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table)) {
+  if (skipBlock) {
     message(get('harvest-message'), '');
     get('harvest-save').disabled = false;
     return;
@@ -521,7 +526,7 @@ get('harvest-entry').addEventListener('submit', async event => {
     delete data.tanggal;
   }
   if (['padi_panen', 'padi_penjualan', 'padi_rencana'].includes(table)) {
-    data.petak = data.blok;
+    if ('blok' in data) data.petak = data.blok;
     delete data.blok;
   }
   if (table === 'padi_rencana') {

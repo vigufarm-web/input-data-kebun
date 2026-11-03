@@ -22,4 +22,5 @@ node --input-type=module -e '
   if (original.split(listener).length !== 2) throw Error("Listener API berubah.");
   writeFileSync(file, original.replace(listener, ".listen(PORT, \x27127.0.0.1\x27,"));
 '
+node patch-demo-sales.mjs .demo-backend/server.js
 npm ci --omit=dev --prefix .demo-backend
