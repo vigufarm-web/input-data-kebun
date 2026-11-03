@@ -32,6 +32,9 @@ button, .action { background: #245c3c; color: white; border: 1px solid #245c3c; 
 .secondary { background: white; color: #245c3c; }
 button:disabled { opacity: .55; cursor: default; }
 .table-wrap { overflow: auto; margin: 1rem 0; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 20rem)); gap: 1rem; }
+.dashboard-card { display: grid; gap: .4rem; text-align: left; background: #f2f7ef; color: #193e2c; border-color: #d9e3da; padding: 1rem; }
+.dashboard-card strong { font-size: 1.5rem; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 th, td { padding: .55rem; border-bottom: 1px solid #e0e8e0; }
 th { background: #eaf1e9; }

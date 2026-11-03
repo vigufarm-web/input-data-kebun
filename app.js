@@ -1,5 +1,6 @@
 const get = id => document.getElementById(id);
 const login = get('login');
+const dashboard = get('dashboard');
 const progress = get('progress');
 const editor = get('editor');
 const entry = get('entry');
@@ -56,6 +57,7 @@ async function refresh() {
   try {
     const data = await request('/api/records/lahan_harian?' + params);
     if (current !== pageRequest) return;
+    if (!params.get('q')) get('progress-count').textContent = `${new Intl.NumberFormat('id-ID').format(data.total)} catatan`;
     get('rows').replaceChildren(...data.rows.map(renderRow));
     get('range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada hasil';
     get('previous').disabled = data.offset === 0;
@@ -99,17 +101,20 @@ async function openEditor(row = null) {
 async function showSession() {
   const { user } = await request('/api/me');
   login.hidden = Boolean(user);
-  progress.hidden = !user;
+  dashboard.hidden = !user;
+  progress.hidden = true;
   if (!user) {
     message(status, 'Masuk dengan akun Laporan Kebun.');
     return;
   }
   if (!user.peran.includes('admin')) {
     get('add').disabled = true;
+    get('open-progress').disabled = true;
     message(status, 'Progres Harian tahap pertama tersedia untuk admin. Gunakan Dashboard Laporan Kebun untuk modul sesuai akses Anda.', true);
     return;
   }
   get('add').disabled = false;
+  get('open-progress').disabled = false;
   message(status, `Masuk sebagai ${user.nama || user.username}.`);
   await refresh();
 }
@@ -140,6 +145,18 @@ get('logout').addEventListener('click', async () => {
   } catch (error) {
     message(status, error.message, true);
   }
+});
+
+get('open-progress').addEventListener('click', () => {
+  dashboard.hidden = true;
+  progress.hidden = false;
+});
+get('back-dashboard').addEventListener('click', () => {
+  progress.hidden = true;
+  dashboard.hidden = false;
+  offset = 0;
+  search.reset();
+  refresh();
 });
 
 entry.addEventListener('submit', async event => {

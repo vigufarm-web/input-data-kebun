@@ -21,10 +21,24 @@
       <label>Kata sandi <input name="password" type="password" autocomplete="current-password" required></label>
       <button>Masuk</button>
     </form>
+    <section id="dashboard" class="panel" hidden aria-labelledby="dashboard-title">
+      <div class="bar">
+        <h2 id="dashboard-title">Dashboard Admin</h2>
+        <button id="logout" type="button" class="secondary">Keluar</button>
+      </div>
+      <p>Ringkasan dan rincian data kebun.</p>
+      <div class="dashboard-grid">
+        <button id="open-progress" type="button" class="dashboard-card">
+          <span>Progres Harian</span>
+          <strong id="progress-count">Memuat…</strong>
+          <span>Buka rincian dan input →</span>
+        </button>
+      </div>
+    </section>
     <section id="progress" class="panel" hidden aria-labelledby="progress-title">
       <div class="bar">
         <h2 id="progress-title">Progres Harian</h2>
-        <button id="logout" type="button" class="secondary">Keluar</button>
+        <button id="back-dashboard" type="button" class="secondary">Dashboard</button>
       </div>
       <p>Catat hasil per tanggal dan blok. Perubahan kelompok tanam dikelola di <a href="https://vigufarm-web.github.io/peta-kebun/">Peta Kebun</a>.</p>
       <div class="bar">
