@@ -64,7 +64,6 @@ const harvestFields = {
     { key: 'jumlah_karung', label: 'Jumlah karung', type: 'number', step: '1' },
     { key: 'gkp_kg', label: 'Gabah / GKP (kg)', type: 'number', required: true, step: 'any' },
     { key: 'gkg_kg', label: 'GKG (kg)', type: 'number', step: 'any' },
-    { key: 'detail_timbang', label: 'Rincian timbang (kg)', type: 'text' },
   ],
   padi_benih: [
     { key: 'varietas', label: 'Varietas', type: 'text', required: true },
