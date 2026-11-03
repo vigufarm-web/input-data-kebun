@@ -18,4 +18,10 @@ Repo ini berisi kode halaman dan penerus API satu origin. Database, akun, foto, 
 
 Buat Web Service Node dari repo ini. Isi Build Command dengan `bash prepare-demo.sh` dan Start Command dengan `npm run start:demo`. Tetapkan `DEMO_PASSWORD` sebagai environment variable di Render dengan panjang minimal 12 karakter. Nama pengguna uji default adalah `admin-demo`.
 
-Saat mulai, layanan membuat database baru dengan blok `UJI-01`. Coba login, simpan hasil untuk blok itu, revisi, dan unduh Excel. Data simulasi dibuat ulang saat layanan dimulai ulang. Gunakan konfigurasi uji ini hanya untuk simulasi.
+Saat mulai, layanan membuat database baru dengan blok `UJI-01` dan `UJI-PADI`. Data simulasi dibuat ulang saat layanan dimulai ulang; jangan masukkan data sebenarnya. Akses staf penjualan dan mandor diuji terpisah, termasuk penolakan akses campuran mandor/penjualan.
+
+## Pemeriksaan sebelum digunakan
+
+Setelah `bash prepare-demo.sh` berhasil, jalankan `npm test` untuk menguji login, pembatasan hak akses, simpan, revisi usang, unduhan Excel dan halaman setelah 200 rencana. Tes ini membuat database sementara sendiri; tidak menguji koneksi ke database produksi.
+
+Kode aplikasi dan konfigurasi uji tidak memindahkan akun atau data produksi. Sebelum menghubungkan penyimpanan permanen, verifikasi sumber data terbaru, cadangan, otorisasi pada layanan yang dituju, dan konflik saat dua layanan menyimpan secara bersamaan. Jangan memasukkan kata sandi, token atau isi database ke repositori.
