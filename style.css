@@ -1,0 +1,40 @@
+:root {
+  color-scheme: light;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: #1b2d22;
+  background: #f4f7f2;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  justify-content: space-between;
+  background: #193e2c;
+  color: white;
+  padding: 1rem max(1rem, calc((100% - 72rem)/2));
+}
+header a { color: #e6f2e7; }
+.brand { margin-right: .7rem; color: #d9efa6; font-weight: 800; }
+main { width: min(72rem, calc(100% - 2rem)); margin: 2rem auto; }
+h1, h2 { margin: 0; }
+.panel, dialog { background: white; border: 1px solid #d9e3da; border-radius: .8rem; padding: 1.25rem; }
+.login { max-width: 28rem; }
+.bar { display: flex; gap: .75rem; align-items: end; justify-content: space-between; flex-wrap: wrap; }
+label { display: grid; gap: .25rem; margin: .5rem 0; }
+.bar label { margin: 0; }
+input, textarea, select, button, .action { font: inherit; border-radius: .4rem; padding: .48rem .65rem; }
+input, textarea, select { width: 100%; border: 1px solid #a6b6a9; background: white; color: inherit; }
+button, .action { background: #245c3c; color: white; border: 1px solid #245c3c; cursor: pointer; text-decoration: none; }
+.secondary { background: white; color: #245c3c; }
+button:disabled { opacity: .55; cursor: default; }
+.table-wrap { overflow: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: .55rem; border-bottom: 1px solid #e0e8e0; }
+th { background: #eaf1e9; }
+dialog { width: min(30rem, calc(100% - 2rem)); }
+dialog::backdrop { background: #1b2d2266; }
+.error { color: #a12923; }
