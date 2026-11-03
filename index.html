@@ -39,13 +39,14 @@
         </button>
         <button id="open-harvest" type="button" class="dashboard-card"><span>Pisang · Panen &amp; Packing</span><span>Buka rincian dan input →</span></button>
         <button id="open-milling" type="button" class="dashboard-card"><span>Padi · Panen &amp; Penggilingan</span><span>Buka rincian dan input →</span></button>
+        <button id="open-climate" type="button" class="dashboard-card"><span>Iklim</span><span>Buka rincian dan input →</span></button>
       </div>
     </section>
     <section id="harvest" class="panel" hidden>
       <div class="bar"><h2 id="harvest-section-title">Pisang · Panen &amp; Packing</h2><button id="harvest-back" type="button" class="secondary">Dashboard</button></div>
       <p id="harvest-description">Panen mencatat tandan per blok. Packing mencatat hasil box per kelas.</p>
       <div class="bar">
-        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_giling">Penggilingan Padi</option></select></label>
+        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="iklim">Iklim</option></select></label>
         <div class="bar"><a id="harvest-excel" class="action secondary" href="/api/excel/download?tables=pisang_panen_pkk">Unduh Excel</a><button id="harvest-add" type="button">Tambah</button></div>
       </div>
       <div class="table-wrap"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
