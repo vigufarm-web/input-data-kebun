@@ -16,6 +16,22 @@ let saving = false;
 let availableRoles = {};
 let editingUser = null;
 let savingUser = false;
+let harvestOffset = 0;
+let harvestEditing = null;
+let harvestSaving = false;
+let harvestRequest;
+const harvestFields = {
+  pisang_panen_pkk: [
+    { key: 'fase', label: 'Fase', options: ['PC', 'R1', 'R2', 'R3', 'R4'] },
+    { key: 'pkk_panen', label: 'Tandan / pokok dipanen', type: 'number', required: true, step: '1' },
+  ],
+  pisang_box: [
+    { key: 'kelas', label: 'Kelas', options: ['A', 'B', 'C', 'MIX'], required: true },
+    { key: 'bentuk', label: 'Bentuk', options: ['FH', 'Cluster', 'Single'] },
+    { key: 'jumlah_box', label: 'Jumlah box', type: 'number', required: true, step: '1' },
+    { key: 'berat_kg', label: 'Berat (kg)', type: 'number', step: 'any' },
+  ],
+};
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -115,12 +131,14 @@ async function showSession() {
     get('add').disabled = true;
     get('open-progress').disabled = true;
     get('open-users').disabled = true;
+    get('open-harvest').disabled = true;
     message(status, 'Progres Harian tahap pertama tersedia untuk admin. Gunakan Dashboard Laporan Kebun untuk modul sesuai akses Anda.', true);
     return;
   }
   get('add').disabled = false;
   get('open-progress').disabled = false;
   get('open-users').disabled = false;
+  get('open-harvest').disabled = false;
   message(status, `Masuk sebagai ${user.nama || user.username}.`);
   await refresh();
 }
@@ -224,6 +242,126 @@ get('open-users').addEventListener('click', async () => {
   }
 });
 get('users-back').addEventListener('click', () => { get('users').hidden = true; dashboard.hidden = false; });
+
+async function refreshHarvest() {
+  const token = Symbol();
+  harvestRequest = token;
+  const table = get('harvest-type').value;
+  get('harvest-excel').href = '/api/excel/download?tables=' + encodeURIComponent(table);
+  const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort: '-tanggal' });
+  try {
+    const data = await request('/api/records/' + table + '?' + params);
+    if (harvestRequest !== token) return;
+    const headings = ['Tanggal', 'Blok', ...harvestFields[table].map(field => field.label), 'Keterangan', 'Aksi'];
+    const header = document.createElement('tr');
+    for (const label of headings) {
+      const th = document.createElement('th');
+      th.textContent = label;
+      header.append(th);
+    }
+    get('harvest-head').replaceChildren(header);
+    const rows = data.rows.map(row => {
+      const tr = document.createElement('tr');
+      for (const value of [row.tanggal, row.blok, ...harvestFields[table].map(field => row[field.key]), row.keterangan]) {
+        tr.insertCell().textContent = value ?? '—';
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'secondary';
+      button.textContent = 'Revisi';
+      button.addEventListener('click', () => openHarvestEditor(row));
+      tr.insertCell().append(button);
+      return tr;
+    });
+    get('harvest-rows').replaceChildren(...rows);
+    get('harvest-range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada data';
+    get('harvest-prev').disabled = data.offset === 0;
+    get('harvest-next').disabled = data.offset + data.rows.length >= data.total;
+  } catch (error) {
+    if (harvestRequest === token) message(status, error.message, true);
+  }
+}
+
+async function openHarvestEditor(row = null) {
+  const form = get('harvest-entry');
+  const table = get('harvest-type').value;
+  harvestEditing = row;
+  form.reset();
+  get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + (table === 'pisang_box' ? 'packing' : 'panen');
+  form.elements.tanggal.value = row?.tanggal ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  form.elements.keterangan.value = row?.keterangan ?? '';
+  form.elements.blok.required = table === 'pisang_panen_pkk';
+  const fields = harvestFields[table].map(field => {
+    const label = document.createElement('label');
+    label.append(document.createTextNode(field.label));
+    const input = document.createElement(field.options ? 'select' : 'input');
+    input.name = field.key;
+    input.required = Boolean(field.required);
+    if (field.options) setOptions(input, field.options, row?.[field.key]);
+    else {
+      input.type = field.type;
+      input.min = '0';
+      input.step = field.step;
+      input.value = row?.[field.key] ?? '';
+    }
+    label.append(input);
+    return label;
+  });
+  get('harvest-fields').replaceChildren(...fields);
+  message(get('harvest-message'), 'Memuat blok…');
+  get('harvest-save').disabled = true;
+  get('harvest-editor').showModal();
+  try {
+    const locations = await request('/api/daily/locations');
+    if (!get('harvest-editor').open) return;
+    setOptions(form.elements.blok, locations.filter(b => b.blok_id && b.divisi === 'Pisang').map(b => b.nama), row?.blok);
+    message(get('harvest-message'), '');
+    get('harvest-save').disabled = false;
+  } catch (error) {
+    message(get('harvest-message'), error.message, true);
+  }
+}
+
+get('open-harvest').addEventListener('click', () => {
+  dashboard.hidden = true;
+  get('harvest').hidden = false;
+  harvestOffset = 0;
+  refreshHarvest();
+});
+get('harvest-back').addEventListener('click', () => { harvestRequest = null; get('harvest').hidden = true; dashboard.hidden = false; });
+get('harvest-type').addEventListener('change', () => { harvestOffset = 0; refreshHarvest(); });
+get('harvest-prev').addEventListener('click', () => { harvestOffset = Math.max(0, harvestOffset - pageSize); refreshHarvest(); });
+get('harvest-next').addEventListener('click', () => { harvestOffset += pageSize; refreshHarvest(); });
+get('harvest-add').addEventListener('click', () => openHarvestEditor());
+get('harvest-cancel').addEventListener('click', () => get('harvest-editor').close());
+get('harvest-editor').addEventListener('cancel', event => { if (harvestSaving) event.preventDefault(); });
+get('harvest-entry').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (harvestSaving) return;
+  const form = event.currentTarget;
+  const table = get('harvest-type').value;
+  const data = Object.fromEntries(new FormData(form));
+  for (const field of harvestFields[table].filter(field => field.type === 'number')) {
+    data[field.key] = data[field.key] === '' ? null : Number(data[field.key]);
+  }
+  harvestSaving = true;
+  get('harvest-save').disabled = true;
+  get('harvest-cancel').disabled = true;
+  try {
+    if (harvestEditing) await request('/api/t/' + table + '/' + harvestEditing.id, 'PUT', { ...data, updated_at: harvestEditing.updated_at ?? null });
+    else await request('/api/t/' + table, 'POST', data);
+    get('harvest-editor').close();
+    harvestOffset = 0;
+    await refreshHarvest();
+    message(status, 'Data tersimpan.');
+  } catch (error) {
+    message(get('harvest-message'), error.message, true);
+  } finally {
+    harvestSaving = false;
+    get('harvest-save').disabled = false;
+    get('harvest-cancel').disabled = false;
+  }
+});
 get('user-add').addEventListener('click', () => openUserEditor());
 get('user-cancel').addEventListener('click', () => get('user-editor').close());
 get('user-editor').addEventListener('cancel', event => { if (savingUser) event.preventDefault(); });

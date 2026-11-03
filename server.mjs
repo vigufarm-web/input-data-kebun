@@ -22,9 +22,9 @@ const staticFiles = new Map([
   ['/style.css', ['style.css', 'text/css']],
 ]);
 const readRoutes = new Set([
-  '/api/me', '/api/records/lahan_harian', '/api/t/lahan_aktivitas', '/api/daily/locations', '/api/users',
+  '/api/me', '/api/records/lahan_harian', '/api/records/pisang_panen_pkk', '/api/records/pisang_box', '/api/t/lahan_aktivitas', '/api/daily/locations', '/api/users',
 ]);
-const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian', '/api/users']);
+const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian', '/api/t/pisang_panen_pkk', '/api/t/pisang_box', '/api/users']);
 
 function reply(response, code, error) {
   response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -81,10 +81,10 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
-  const isExcel = pathname === '/api/excel/download' && url.searchParams.getAll('tables').join() === 'lahan_harian';
+  const isExcel = pathname === '/api/excel/download' && ['lahan_harian', 'pisang_panen_pkk', 'pisang_box'].includes(url.searchParams.getAll('tables').join());
   const readable = req.method === 'GET' && (readRoutes.has(pathname) || isExcel);
   const writable = req.method === 'POST' && writeRoutes.has(pathname) ||
-    req.method === 'PUT' && (/^\/api\/t\/lahan_harian\/\d+$/.test(pathname) || /^\/api\/users\/\d+$/.test(pathname));
+    req.method === 'PUT' && (/^\/api\/t\/(?:lahan_harian|pisang_panen_pkk|pisang_box)\/\d+$/.test(pathname) || /^\/api\/users\/\d+$/.test(pathname));
   if (!readable && !writable) return reply(res, 404, 'Halaman tidak ditemukan.');
   const origin = publicOrigin?.origin || `http://${req.headers.host}`;
   if (writable && req.headers.origin && req.headers.origin !== origin) return reply(res, 403, 'Asal permintaan tidak diizinkan.');

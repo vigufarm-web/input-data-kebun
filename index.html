@@ -37,7 +37,18 @@
           <span>Pengguna dan Hak Akses</span>
           <span>Kelola akun dan peran →</span>
         </button>
+        <button id="open-harvest" type="button" class="dashboard-card"><span>Pisang · Panen &amp; Packing</span><span>Buka rincian dan input →</span></button>
       </div>
+    </section>
+    <section id="harvest" class="panel" hidden>
+      <div class="bar"><h2>Pisang · Panen &amp; Packing</h2><button id="harvest-back" type="button" class="secondary">Dashboard</button></div>
+      <p>Panen mencatat tandan per blok. Packing mencatat hasil box per kelas.</p>
+      <div class="bar">
+        <label>Jenis data <select id="harvest-type"><option value="pisang_panen_pkk">Panen</option><option value="pisang_box">Packing</option></select></label>
+        <div class="bar"><a id="harvest-excel" class="action secondary" href="/api/excel/download?tables=pisang_panen_pkk">Unduh Excel</a><button id="harvest-add" type="button">Tambah</button></div>
+      </div>
+      <div class="table-wrap"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
+      <div class="bar"><button id="harvest-prev" class="secondary">Sebelumnya</button><span id="harvest-range"></span><button id="harvest-next" class="secondary">Berikutnya</button></div>
     </section>
     <section id="users" class="panel" hidden aria-labelledby="users-title">
       <div class="bar"><h2 id="users-title">Pengguna dan Hak Akses</h2><button id="users-back" type="button" class="secondary">Dashboard</button></div>
@@ -100,6 +111,17 @@
         <label id="user-active-label"><span><input name="aktif" type="checkbox" checked style="width:auto"> Akun aktif</span></label>
         <p id="user-message" role="status"></p>
         <div class="bar"><button id="user-cancel" type="button" class="secondary">Batal</button><button id="user-save">Simpan pengguna</button></div>
+      </form>
+    </dialog>
+    <dialog id="harvest-editor">
+      <form id="harvest-entry">
+        <h2 id="harvest-title"></h2>
+        <label>Tanggal <input name="tanggal" type="date" required></label>
+        <label>Blok <select name="blok"></select></label>
+        <div id="harvest-fields"></div>
+        <label>Keterangan <textarea name="keterangan" rows="2"></textarea></label>
+        <p id="harvest-message" role="status"></p>
+        <div class="bar"><button id="harvest-cancel" type="button" class="secondary">Batal</button><button id="harvest-save">Simpan</button></div>
       </form>
     </dialog>
   </main>
