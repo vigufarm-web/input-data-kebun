@@ -22,9 +22,9 @@ const staticFiles = new Map([
   ['/style.css', ['style.css', 'text/css']],
 ]);
 const readRoutes = new Set([
-  '/api/me', '/api/records/lahan_harian', '/api/records/pisang_panen_pkk', '/api/records/pisang_box', '/api/records/pisang_bibit', '/api/records/padi_giling', '/api/records/padi_panen', '/api/records/padi_benih', '/api/records/iklim', '/api/t/lahan_aktivitas', '/api/daily/locations', '/api/users',
+  '/api/me', '/api/records/lahan_harian', '/api/records/pisang_panen_pkk', '/api/records/pisang_box', '/api/records/pisang_bibit', '/api/records/pisang_estimasi', '/api/records/padi_giling', '/api/records/padi_panen', '/api/records/padi_benih', '/api/records/iklim', '/api/t/lahan_aktivitas', '/api/daily/locations', '/api/users',
 ]);
-const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian', '/api/t/pisang_panen_pkk', '/api/t/pisang_box', '/api/t/pisang_bibit', '/api/t/padi_giling', '/api/t/padi_panen', '/api/t/padi_benih', '/api/t/iklim', '/api/users']);
+const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian', '/api/t/pisang_panen_pkk', '/api/t/pisang_box', '/api/t/pisang_bibit', '/api/t/pisang_estimasi', '/api/t/padi_giling', '/api/t/padi_panen', '/api/t/padi_benih', '/api/t/iklim', '/api/users']);
 
 function reply(response, code, error) {
   response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -81,10 +81,10 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
-  const isExcel = pathname === '/api/excel/download' && ['lahan_harian', 'pisang_panen_pkk', 'pisang_box', 'pisang_bibit', 'padi_giling', 'padi_panen', 'padi_benih', 'iklim'].includes(url.searchParams.getAll('tables').join());
+  const isExcel = pathname === '/api/excel/download' && ['lahan_harian', 'pisang_panen_pkk', 'pisang_box', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_panen', 'padi_benih', 'iklim'].includes(url.searchParams.getAll('tables').join());
   const readable = req.method === 'GET' && (readRoutes.has(pathname) || isExcel);
   const writable = req.method === 'POST' && writeRoutes.has(pathname) ||
-    req.method === 'PUT' && (/^\/api\/t\/(?:lahan_harian|pisang_panen_pkk|pisang_box|pisang_bibit|padi_giling|padi_panen|padi_benih|iklim)\/\d+$/.test(pathname) || /^\/api\/users\/\d+$/.test(pathname));
+    req.method === 'PUT' && (/^\/api\/t\/(?:lahan_harian|pisang_panen_pkk|pisang_box|pisang_bibit|pisang_estimasi|padi_giling|padi_panen|padi_benih|iklim)\/\d+$/.test(pathname) || /^\/api\/users\/\d+$/.test(pathname));
   if (!readable && !writable) return reply(res, 404, 'Halaman tidak ditemukan.');
   const origin = publicOrigin?.origin || `http://${req.headers.host}`;
   if (writable && req.headers.origin && req.headers.origin !== origin) return reply(res, 403, 'Asal permintaan tidak diizinkan.');

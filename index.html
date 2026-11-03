@@ -46,7 +46,7 @@
       <div class="bar"><h2 id="harvest-section-title">Pisang · Panen &amp; Packing</h2><button id="harvest-back" type="button" class="secondary">Dashboard</button></div>
       <p id="harvest-description">Panen mencatat tandan per blok. Packing mencatat hasil box per kelas.</p>
       <div class="bar">
-        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option></select></label>
+        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="pisang_estimasi">Estimasi Panen Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option></select></label>
         <div class="bar"><a id="harvest-excel" class="action secondary" href="/api/excel/download?tables=pisang_panen_pkk">Unduh Excel</a><button id="harvest-add" type="button">Tambah</button></div>
       </div>
       <div class="table-wrap"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
@@ -118,7 +118,7 @@
     <dialog id="harvest-editor">
       <form id="harvest-entry">
         <h2 id="harvest-title"></h2>
-        <label>Tanggal <input name="tanggal" type="date" required></label>
+        <label><span id="harvest-date-label">Tanggal</span> <input name="tanggal" type="date" required></label>
         <label id="harvest-block-label"><span id="harvest-block-caption">Blok</span> <select name="blok"></select></label>
         <div id="harvest-fields"></div>
         <label>Keterangan <textarea name="keterangan" rows="2"></textarea></label>

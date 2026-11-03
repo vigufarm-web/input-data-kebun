@@ -42,6 +42,12 @@ const harvestFields = {
     { key: 'ditanam', label: 'Total ditanam dari batch (pokok)', type: 'number', step: '1' },
     { key: 'harga_satuan', label: 'Harga/bibit', type: 'number', step: 'any' },
   ],
+  pisang_estimasi: [
+    { key: 'box', label: 'Estimasi total (box)', type: 'number', required: true, step: '1' },
+    { key: 'box_a', label: 'Kelas A (box)', type: 'number', step: '1' },
+    { key: 'box_b', label: 'Kelas B (box)', type: 'number', step: '1' },
+    { key: 'box_c', label: 'Kelas C (box)', type: 'number', step: '1' },
+  ],
   padi_giling: [
     { key: 'gudang', label: 'Gudang', type: 'text' },
     { key: 'beras_kg', label: 'Beras masuk (kg)', type: 'number', required: true, step: 'any' },
@@ -297,11 +303,12 @@ async function refreshHarvest() {
   harvestRequest = token;
   const table = get('harvest-type').value;
   get('harvest-excel').href = '/api/excel/download?tables=' + encodeURIComponent(table);
-  const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort: table === 'pisang_bibit' ? '-tanggal_datang' : '-tanggal' });
+  const sort = table === 'pisang_bibit' ? '-tanggal_datang' : table === 'pisang_estimasi' ? '-bulan' : '-tanggal';
+  const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort });
   try {
     const data = await request('/api/records/' + table + '?' + params);
     if (harvestRequest !== token) return;
-    const headings = [table === 'pisang_bibit' ? 'Tanggal datang' : 'Tanggal', ...(['pisang_bibit', 'padi_giling', 'padi_benih', 'iklim'].includes(table) ? [] : [table === 'padi_panen' ? 'Petak' : 'Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Saldo batch (pokok)'] : []), 'Keterangan', 'Aksi'];
+    const headings = [table === 'pisang_bibit' ? 'Tanggal datang' : table === 'pisang_estimasi' ? 'Bulan' : 'Tanggal', ...(['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table) ? [] : [table === 'padi_panen' ? 'Petak' : 'Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Saldo batch (pokok)'] : []), 'Keterangan', 'Aksi'];
     const header = document.createElement('tr');
     for (const label of headings) {
       const th = document.createElement('th');
@@ -311,7 +318,8 @@ async function refreshHarvest() {
     get('harvest-head').replaceChildren(header);
     const rows = data.rows.map(row => {
       const tr = document.createElement('tr');
-      for (const value of [table === 'pisang_bibit' ? row.tanggal_datang : row.tanggal, ...(['pisang_bibit', 'padi_giling', 'padi_benih', 'iklim'].includes(table) ? [] : [table === 'padi_panen' ? row.petak : row.blok]), ...harvestFields[table].map(field => row[field.key]), ...(table === 'padi_benih' ? [row.saldo_varietas] : table === 'pisang_bibit' ? [row.saldo] : []), row.keterangan]) {
+      const date = table === 'pisang_bibit' ? row.tanggal_datang : table === 'pisang_estimasi' ? row.bulan : row.tanggal;
+      for (const value of [date, ...(['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table) ? [] : [table === 'padi_panen' ? row.petak : row.blok]), ...harvestFields[table].map(field => row[field.key]), ...(table === 'padi_benih' ? [row.saldo_varietas] : table === 'pisang_bibit' ? [row.saldo] : []), row.keterangan]) {
         tr.insertCell().textContent = value ?? '—';
       }
       const button = document.createElement('button');
@@ -336,15 +344,17 @@ async function openHarvestEditor(row = null) {
   const table = get('harvest-type').value;
   harvestEditing = row;
   form.reset();
-  const title = table === 'pisang_bibit' ? 'batch bibit Pisang' : table === 'iklim' ? 'data iklim' : table === 'padi_benih' ? 'mutasi benih Padi' : table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : table === 'padi_panen' ? 'panen Padi' : 'panen';
+  const title = table === 'pisang_estimasi' ? 'estimasi panen Pisang' : table === 'pisang_bibit' ? 'batch bibit Pisang' : table === 'iklim' ? 'data iklim' : table === 'padi_benih' ? 'mutasi benih Padi' : table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : table === 'padi_panen' ? 'panen Padi' : 'panen';
   get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + title;
-  form.elements.tanggal.value = row ? (table === 'pisang_bibit' ? row.tanggal_datang : row.tanggal) ?? '' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  const dateValue = table === 'pisang_bibit' ? row?.tanggal_datang : table === 'pisang_estimasi' ? row?.bulan : row?.tanggal;
+  form.elements.tanggal.value = row ? dateValue ?? '' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  get('harvest-date-label').textContent = table === 'pisang_estimasi' ? 'Bulan target (pilih tanggal dalam bulan)' : 'Tanggal';
   form.elements.tanggal.required = !(table === 'padi_panen' && row && !row.tanggal);
   form.elements.keterangan.value = row?.keterangan ?? '';
   form.elements.blok.required = table === 'pisang_panen_pkk' || table === 'padi_panen';
   get('harvest-block-caption').textContent = table === 'padi_panen' ? 'Petak' : 'Blok';
-  get('harvest-block-label').hidden = ['pisang_bibit', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
-  form.elements.blok.disabled = ['pisang_bibit', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
+  get('harvest-block-label').hidden = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
+  form.elements.blok.disabled = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
   const fields = harvestFields[table].map(field => {
     const label = document.createElement('label');
     label.append(document.createTextNode(field.label));
@@ -367,7 +377,7 @@ async function openHarvestEditor(row = null) {
   message(get('harvest-message'), 'Memuat blok…');
   get('harvest-save').disabled = true;
   get('harvest-editor').showModal();
-  if (['pisang_bibit', 'padi_giling', 'padi_benih', 'iklim'].includes(table)) {
+  if (['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table)) {
     message(get('harvest-message'), '');
     get('harvest-save').disabled = false;
     return;
@@ -431,6 +441,10 @@ get('harvest-entry').addEventListener('submit', async event => {
   const data = Object.fromEntries(new FormData(form));
   if (table === 'pisang_bibit') {
     data.tanggal_datang = data.tanggal;
+    delete data.tanggal;
+  }
+  if (table === 'pisang_estimasi') {
+    data.bulan = data.tanggal;
     delete data.tanggal;
   }
   if (table === 'padi_panen') {
