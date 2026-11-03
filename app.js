@@ -48,6 +48,11 @@ const harvestFields = {
     { key: 'box_b', label: 'Kelas B (box)', type: 'number', step: '1' },
     { key: 'box_c', label: 'Kelas C (box)', type: 'number', step: '1' },
   ],
+  pisang_handclass: [
+    { key: 'status', label: 'Status', options: ['PC', 'R1', 'R2', 'R3', 'R4'] },
+    { key: 'rata_hand', label: 'Rata-rata hand per tandan', type: 'number', required: true, step: 'any' },
+    { key: 'jumlah_sampel', label: 'Jumlah sampel', type: 'number', step: '1' },
+  ],
   padi_giling: [
     { key: 'gudang', label: 'Gudang', type: 'text' },
     { key: 'beras_kg', label: 'Beras masuk (kg)', type: 'number', required: true, step: 'any' },
@@ -344,14 +349,14 @@ async function openHarvestEditor(row = null) {
   const table = get('harvest-type').value;
   harvestEditing = row;
   form.reset();
-  const title = table === 'pisang_estimasi' ? 'estimasi panen Pisang' : table === 'pisang_bibit' ? 'batch bibit Pisang' : table === 'iklim' ? 'data iklim' : table === 'padi_benih' ? 'mutasi benih Padi' : table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : table === 'padi_panen' ? 'panen Padi' : 'panen';
+  const title = table === 'pisang_handclass' ? 'Hand Class Pisang' : table === 'pisang_estimasi' ? 'estimasi panen Pisang' : table === 'pisang_bibit' ? 'batch bibit Pisang' : table === 'iklim' ? 'data iklim' : table === 'padi_benih' ? 'mutasi benih Padi' : table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : table === 'padi_panen' ? 'panen Padi' : 'panen';
   get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + title;
   const dateValue = table === 'pisang_bibit' ? row?.tanggal_datang : table === 'pisang_estimasi' ? row?.bulan : row?.tanggal;
   form.elements.tanggal.value = row ? dateValue ?? '' : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
   get('harvest-date-label').textContent = table === 'pisang_estimasi' ? 'Bulan target (pilih tanggal dalam bulan)' : 'Tanggal';
   form.elements.tanggal.required = !(table === 'padi_panen' && row && !row.tanggal);
   form.elements.keterangan.value = row?.keterangan ?? '';
-  form.elements.blok.required = table === 'pisang_panen_pkk' || table === 'padi_panen';
+  form.elements.blok.required = table === 'pisang_panen_pkk' || table === 'pisang_handclass' || table === 'padi_panen';
   get('harvest-block-caption').textContent = table === 'padi_panen' ? 'Petak' : 'Blok';
   get('harvest-block-label').hidden = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
   form.elements.blok.disabled = ['pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim'].includes(table);
