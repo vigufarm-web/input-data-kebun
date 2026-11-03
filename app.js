@@ -13,6 +13,9 @@ let offset = 0;
 let editing = null;
 let pageRequest;
 let saving = false;
+let availableRoles = {};
+let editingUser = null;
+let savingUser = false;
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -99,7 +102,8 @@ async function openEditor(row = null) {
 }
 
 async function showSession() {
-  const { user } = await request('/api/me');
+  const { user, roles } = await request('/api/me');
+  availableRoles = roles || {};
   login.hidden = Boolean(user);
   dashboard.hidden = !user;
   progress.hidden = true;
@@ -110,11 +114,13 @@ async function showSession() {
   if (!user.peran.includes('admin')) {
     get('add').disabled = true;
     get('open-progress').disabled = true;
+    get('open-users').disabled = true;
     message(status, 'Progres Harian tahap pertama tersedia untuk admin. Gunakan Dashboard Laporan Kebun untuk modul sesuai akses Anda.', true);
     return;
   }
   get('add').disabled = false;
   get('open-progress').disabled = false;
+  get('open-users').disabled = false;
   message(status, `Masuk sebagai ${user.nama || user.username}.`);
   await refresh();
 }
@@ -157,6 +163,96 @@ get('back-dashboard').addEventListener('click', () => {
   offset = 0;
   search.reset();
   refresh();
+});
+
+async function refreshUsers() {
+  const list = await request('/api/users');
+  const rows = list.map(user => {
+    const tr = document.createElement('tr');
+    for (const value of [user.nama, user.username, user.peran.map(role => availableRoles[role]?.label || role).join(', '), user.aktif ? 'Aktif' : 'Nonaktif']) {
+      tr.insertCell().textContent = value || '—';
+    }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary';
+    button.textContent = 'Ubah';
+    button.addEventListener('click', () => openUserEditor(user));
+    tr.insertCell().append(button);
+    return tr;
+  });
+  get('user-rows').replaceChildren(...rows);
+}
+
+function openUserEditor(user = null) {
+  const form = get('user-entry');
+  editingUser = user;
+  form.reset();
+  get('user-title').textContent = user ? 'Ubah pengguna' : 'Tambah pengguna';
+  form.elements.nama.value = user?.nama || '';
+  form.elements.username.value = user?.username || '';
+  form.elements.username.disabled = Boolean(user);
+  form.elements.username.required = !user;
+  form.elements.password.required = !user;
+  form.elements.aktif.checked = user ? Boolean(user.aktif) : true;
+  get('user-active-label').hidden = !user;
+  get('user-password-label').firstChild.textContent = user ? 'Kata sandi baru (kosongkan jika tetap) ' : 'Kata sandi ';
+  const roleElements = Object.entries(availableRoles).map(([key, role]) => {
+    const label = document.createElement('label');
+    const line = document.createElement('span');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = 'peran';
+    checkbox.value = key;
+    checkbox.checked = user?.peran.includes(key) || false;
+    checkbox.style.width = 'auto';
+    line.append(checkbox, document.createTextNode(' ' + role.label + ' — ' + role.desc));
+    label.append(line);
+    return label;
+  });
+  get('user-roles').replaceChildren(...roleElements);
+  message(get('user-message'), '');
+  get('user-editor').showModal();
+}
+
+get('open-users').addEventListener('click', async () => {
+  try {
+    await refreshUsers();
+    dashboard.hidden = true;
+    get('users').hidden = false;
+  } catch (error) {
+    message(status, error.message, true);
+  }
+});
+get('users-back').addEventListener('click', () => { get('users').hidden = true; dashboard.hidden = false; });
+get('user-add').addEventListener('click', () => openUserEditor());
+get('user-cancel').addEventListener('click', () => get('user-editor').close());
+get('user-editor').addEventListener('cancel', event => { if (savingUser) event.preventDefault(); });
+get('user-entry').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (savingUser) return;
+  const form = event.currentTarget;
+  const roles = [...form.querySelectorAll('input[name="peran"]:checked')].map(input => input.value);
+  if (!roles.length) return message(get('user-message'), 'Pilih minimal satu peran.', true);
+  const data = { nama: form.elements.nama.value.trim(), peran: roles };
+  if (editingUser) data.aktif = form.elements.aktif.checked ? 1 : 0;
+  else data.username = form.elements.username.value.trim();
+  if (form.elements.password.value) data.password = form.elements.password.value;
+  savingUser = true;
+  get('user-save').disabled = true;
+  get('user-cancel').disabled = true;
+  try {
+    await request(editingUser ? '/api/users/' + editingUser.id : '/api/users', editingUser ? 'PUT' : 'POST', data);
+    form.elements.password.value = '';
+    get('user-editor').close();
+    await refreshUsers();
+    message(status, 'Pengguna tersimpan.');
+  } catch (error) {
+    message(get('user-message'), error.message, true);
+  } finally {
+    savingUser = false;
+    get('user-save').disabled = false;
+    get('user-cancel').disabled = false;
+  }
 });
 
 entry.addEventListener('submit', async event => {

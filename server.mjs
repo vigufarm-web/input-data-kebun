@@ -22,9 +22,9 @@ const staticFiles = new Map([
   ['/style.css', ['style.css', 'text/css']],
 ]);
 const readRoutes = new Set([
-  '/api/me', '/api/records/lahan_harian', '/api/t/lahan_aktivitas', '/api/daily/locations',
+  '/api/me', '/api/records/lahan_harian', '/api/t/lahan_aktivitas', '/api/daily/locations', '/api/users',
 ]);
-const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian']);
+const writeRoutes = new Set(['/api/login', '/api/logout', '/api/t/lahan_harian', '/api/users']);
 
 function reply(response, code, error) {
   response.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -84,7 +84,7 @@ const server = http.createServer(async (req, res) => {
   const isExcel = pathname === '/api/excel/download' && url.searchParams.getAll('tables').join() === 'lahan_harian';
   const readable = req.method === 'GET' && (readRoutes.has(pathname) || isExcel);
   const writable = req.method === 'POST' && writeRoutes.has(pathname) ||
-    req.method === 'PUT' && /^\/api\/t\/lahan_harian\/\d+$/.test(pathname);
+    req.method === 'PUT' && (/^\/api\/t\/lahan_harian\/\d+$/.test(pathname) || /^\/api\/users\/\d+$/.test(pathname));
   if (!readable && !writable) return reply(res, 404, 'Halaman tidak ditemukan.');
   const origin = publicOrigin?.origin || `http://${req.headers.host}`;
   if (writable && req.headers.origin && req.headers.origin !== origin) return reply(res, 403, 'Asal permintaan tidak diizinkan.');
