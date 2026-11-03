@@ -61,11 +61,9 @@ const harvestFields = {
     { key: 'tempat_giling', label: 'Tempat giling', type: 'text' },
   ],
   padi_panen: [
-    { key: 'musim_tanam', label: 'Petak · musim tanam', type: 'text' },
     { key: 'jumlah_karung', label: 'Jumlah karung', type: 'number', step: '1' },
     { key: 'gkp_kg', label: 'Gabah / GKP (kg)', type: 'number', required: true, step: 'any' },
     { key: 'gkg_kg', label: 'GKG (kg)', type: 'number', step: 'any' },
-    { key: 'gkg_basis', label: 'Dasar berat GKG', options: ['Aktual', 'Estimasi'] },
     { key: 'detail_timbang', label: 'Rincian timbang (kg)', type: 'text' },
   ],
   padi_benih: [
@@ -73,7 +71,6 @@ const harvestFields = {
     { key: 'jenis', label: 'Jenis mutasi', options: ['Masuk', 'Pakai', 'Afkir'], required: true },
     { key: 'qty_kg', label: 'Jumlah (kg)', type: 'number', required: true, step: 'any' },
     { key: 'kelas_benih', label: 'Kelas benih', options: ['BS', 'FS', 'SS', 'ES', 'Lainnya'] },
-    { key: 'untuk', label: 'Untuk petak · musim', type: 'text' },
     { key: 'sumber', label: 'Sumber / pemasok', type: 'text' },
     { key: 'harga_kg', label: 'Harga/kg', type: 'number', step: 'any' },
   ],
