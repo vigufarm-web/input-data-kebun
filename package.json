@@ -1,0 +1,12 @@
+{
+  "name": "input-data-kebun",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs",
+    "start:demo": "node start-demo.mjs",
+    "check": "node --check server.mjs && node --check app.js && node --check start-demo.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

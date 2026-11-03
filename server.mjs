@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const port = Number(process.env.PORT || 8090);
 const upstream = new URL(process.env.KEBUN_API_ORIGIN || 'http://127.0.0.1:3000');
 const publicOrigin = process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
+const demoMode = process.env.DEMO_MODE === '1';
 const loopback = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 if (upstream.protocol !== 'https:' && !(upstream.protocol === 'http:' && loopback.has(upstream.hostname))) {
@@ -64,7 +65,10 @@ const server = http.createServer(async (req, res) => {
   const file = staticFiles.get(pathname);
   if (file && req.method === 'GET') {
     try {
-      const bytes = await readFile(new URL(file[0], import.meta.url));
+      let bytes = await readFile(new URL(file[0], import.meta.url), 'utf8');
+      if (pathname === '/' && demoMode) {
+        bytes = bytes.replace('<h1>Input Data Kebun</h1>', '<h1>Input Data Kebun</h1><p><strong>Lingkungan uji.</strong> Gunakan akun dan data simulasi. Data uji direset saat layanan dimulai ulang.</p>');
+      }
       res.writeHead(200, {
         'Content-Type': file[1] + '; charset=utf-8',
         'Cache-Control': 'no-cache',
