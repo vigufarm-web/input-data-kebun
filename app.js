@@ -31,6 +31,13 @@ const harvestFields = {
     { key: 'jumlah_box', label: 'Jumlah box', type: 'number', required: true, step: '1' },
     { key: 'berat_kg', label: 'Berat (kg)', type: 'number', step: 'any' },
   ],
+  padi_giling: [
+    { key: 'gudang', label: 'Gudang', type: 'text' },
+    { key: 'beras_kg', label: 'Beras masuk (kg)', type: 'number', required: true, step: 'any' },
+    { key: 'gabah_kg', label: 'Gabah digiling (kg)', type: 'number', step: 'any' },
+    { key: 'sumber_panen', label: 'Dari panen', type: 'text' },
+    { key: 'tempat_giling', label: 'Tempat giling', type: 'text' },
+  ],
 };
 
 function message(element, text, error = false) {
@@ -132,6 +139,7 @@ async function showSession() {
     get('open-progress').disabled = true;
     get('open-users').disabled = true;
     get('open-harvest').disabled = true;
+    get('open-milling').disabled = true;
     message(status, 'Progres Harian tahap pertama tersedia untuk admin. Gunakan Dashboard Laporan Kebun untuk modul sesuai akses Anda.', true);
     return;
   }
@@ -139,6 +147,7 @@ async function showSession() {
   get('open-progress').disabled = false;
   get('open-users').disabled = false;
   get('open-harvest').disabled = false;
+  get('open-milling').disabled = false;
   message(status, `Masuk sebagai ${user.nama || user.username}.`);
   await refresh();
 }
@@ -252,7 +261,7 @@ async function refreshHarvest() {
   try {
     const data = await request('/api/records/' + table + '?' + params);
     if (harvestRequest !== token) return;
-    const headings = ['Tanggal', 'Blok', ...harvestFields[table].map(field => field.label), 'Keterangan', 'Aksi'];
+    const headings = ['Tanggal', ...(table === 'padi_giling' ? [] : ['Blok']), ...harvestFields[table].map(field => field.label), 'Keterangan', 'Aksi'];
     const header = document.createElement('tr');
     for (const label of headings) {
       const th = document.createElement('th');
@@ -262,7 +271,7 @@ async function refreshHarvest() {
     get('harvest-head').replaceChildren(header);
     const rows = data.rows.map(row => {
       const tr = document.createElement('tr');
-      for (const value of [row.tanggal, row.blok, ...harvestFields[table].map(field => row[field.key]), row.keterangan]) {
+      for (const value of [row.tanggal, ...(table === 'padi_giling' ? [] : [row.blok]), ...harvestFields[table].map(field => row[field.key]), row.keterangan]) {
         tr.insertCell().textContent = value ?? '—';
       }
       const button = document.createElement('button');
@@ -287,10 +296,13 @@ async function openHarvestEditor(row = null) {
   const table = get('harvest-type').value;
   harvestEditing = row;
   form.reset();
-  get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + (table === 'pisang_box' ? 'packing' : 'panen');
+  const title = table === 'padi_giling' ? 'penggilingan' : table === 'pisang_box' ? 'packing' : 'panen';
+  get('harvest-title').textContent = (row ? 'Revisi ' : 'Tambah ') + title;
   form.elements.tanggal.value = row?.tanggal ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
   form.elements.keterangan.value = row?.keterangan ?? '';
   form.elements.blok.required = table === 'pisang_panen_pkk';
+  get('harvest-block-label').hidden = table === 'padi_giling';
+  form.elements.blok.disabled = table === 'padi_giling';
   const fields = harvestFields[table].map(field => {
     const label = document.createElement('label');
     label.append(document.createTextNode(field.label));
@@ -300,8 +312,10 @@ async function openHarvestEditor(row = null) {
     if (field.options) setOptions(input, field.options, row?.[field.key]);
     else {
       input.type = field.type;
-      input.min = '0';
-      input.step = field.step;
+      if (field.type === 'number') {
+        input.min = '0';
+        input.step = field.step;
+      }
       input.value = row?.[field.key] ?? '';
     }
     label.append(input);
@@ -311,6 +325,11 @@ async function openHarvestEditor(row = null) {
   message(get('harvest-message'), 'Memuat blok…');
   get('harvest-save').disabled = true;
   get('harvest-editor').showModal();
+  if (table === 'padi_giling') {
+    message(get('harvest-message'), '');
+    get('harvest-save').disabled = false;
+    return;
+  }
   try {
     const locations = await request('/api/daily/locations');
     if (!get('harvest-editor').open) return;
@@ -325,6 +344,20 @@ async function openHarvestEditor(row = null) {
 get('open-harvest').addEventListener('click', () => {
   dashboard.hidden = true;
   get('harvest').hidden = false;
+  get('harvest-section-title').textContent = 'Pisang · Panen & Packing';
+  get('harvest-description').textContent = 'Panen mencatat tandan per blok. Packing mencatat hasil box per kelas.';
+  get('harvest-type-label').hidden = false;
+  get('harvest-type').value = 'pisang_panen_pkk';
+  harvestOffset = 0;
+  refreshHarvest();
+});
+get('open-milling').addEventListener('click', () => {
+  dashboard.hidden = true;
+  get('harvest').hidden = false;
+  get('harvest-section-title').textContent = 'Padi · Penggilingan';
+  get('harvest-description').textContent = 'Catat beras masuk dan gabah yang digiling untuk setiap penerimaan.';
+  get('harvest-type-label').hidden = true;
+  get('harvest-type').value = 'padi_giling';
   harvestOffset = 0;
   refreshHarvest();
 });
