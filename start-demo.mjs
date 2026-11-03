@@ -60,15 +60,21 @@ try {
     geometry: { type: 'Polygon', coordinates: [[[109, -7], [109.001, -7], [109.001, -7.001], [109, -7.001], [109, -7]]] },
     properties: { Nama_Blok: 'UJI-01', Lahan: 'Pisang', kepemilikan: 'Sudah milik kebun' },
   };
+  const padiFeature = {
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [[[109.002, -7], [109.003, -7], [109.003, -7.001], [109.002, -7.001], [109.002, -7]]] },
+    properties: { Nama_Blok: 'UJI-PADI', Lahan: 'Padi', kepemilikan: 'Sudah milik kebun' },
+  };
   const layer = {
     nama: 'Blok Simulasi', jenis: 'Blok Tanam', field_nama: 'Nama_Blok', tampil: 1, warna: '#245c3c',
-    geojson: JSON.stringify({ type: 'FeatureCollection', features: [feature] }),
+    geojson: JSON.stringify({ type: 'FeatureCollection', features: [feature, padiFeature] }),
   };
   const preview = await call('/api/gis/revision', { layer });
   if (preview.errors?.length) throw Error('Blok simulasi gagal divalidasi: ' + preview.errors.join(', '));
   await call('/api/gis/revision', { layer, mode: 'apply', token: preview.token });
   const locations = await call('/api/daily/locations');
   if (!locations.some(row => row.nama === 'UJI-01' && row.blok_id)) throw Error('Blok simulasi belum tersedia.');
+  if (!locations.some(row => row.nama === 'UJI-PADI' && row.blok_id && row.divisi === 'Padi')) throw Error('Petak Padi simulasi belum tersedia.');
   const { total } = await call('/api/records/lahan_harian?limit=1');
   if (total !== 0) throw Error('Data awal progres simulasi harus kosong.');
 
