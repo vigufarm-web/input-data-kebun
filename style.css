@@ -33,9 +33,10 @@ button, .action { background: #245c3c; color: white; border: 1px solid #245c3c; 
 button:disabled { opacity: .55; cursor: default; }
 .table-wrap { overflow: auto; margin: 1rem 0; }
 .input-table { max-height: 34rem; border: 1px solid #dce6d9; border-radius: 8px; }
-.input-table table { font-size: 0.85rem; }
+.input-table table { font-size: 0.8rem; }
 .input-table th { position: sticky; top: 0; z-index: 1; }
-.input-table th,.input-table td { padding: 0.5rem 0.6rem; }
+.input-table th,.input-table td { padding: 0.4rem 0.5rem; }
+.input-table th { white-space: nowrap; }
 .input-table button { font-size: 0.8rem; padding: 0.35rem 0.55rem; margin: 0.15rem; }
 .input-table tr.recent-row td { background: #fff2c5; }
 .input-summary { margin: 1rem 0; padding: 1rem; border: 1px solid #dce6d9; border-radius: 10px; background: #f5f9f3; }
