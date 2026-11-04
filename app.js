@@ -81,9 +81,9 @@ function showEstimateSummary(element,data) {
   showSummaryTable(element,`Ringkasan estimasi per tahun · ${numberID.format(data.total)} catatan`,'Jumlah box berdasarkan tahun target.',['Tahun','Total box','Kelas A','Kelas B','Kelas C'],rows);
 }
 function showRiceHarvestSummary(element,data,milling) {
-  const rows=(data.summary?.rows||[]).sort((a,b)=>String(a.petak||'').localeCompare(String(b.petak||''),'id',{numeric:true})).map(r=>[r.petak||'Belum diisi',r.value==null?'—':numberID.format(r.value),r.gkg_kg==null?'Belum dicatat':numberID.format(r.gkg_kg)+(r.gkg_count<r.count?' (sebagian tercatat)':'')]);
+  const rows=(data.summary?.rows||[]).sort((a,b)=>String(a.petak||'').localeCompare(String(b.petak||''),'id',{numeric:true})).map(r=>[r.petak||'Belum diisi',r.value==null?'—':numberID.format(r.value),r.gkg_kg==null?'Belum dicatat':numberID.format(r.gkg_kg)]);
   const total=milling&&!milling.summary?.truncated?(milling.summary?.rows||[]).reduce((n,r)=>n+Number(r.value||0),0):null;
-  showSummaryTable(element,`Ringkasan panen Padi · ${numberID.format(data.total)} catatan`,'GKP dan GKG per blok. Beras masuk seluruh penggilingan: '+(total==null?'belum tersedia':numberID.format(total)+' kg')+'; beras tidak dibagi per blok karena sumber penggilingan belum terhubung secara pasti.',['Blok','GKP (kg)','GKG (kg)'],rows);
+  showSummaryTable(element,`Ringkasan panen Padi · ${numberID.format(data.total)} catatan`,'GKP dan GKG per blok; GKG satu panen dapat dicatat sekali untuk beberapa tanggal. Beras masuk seluruh penggilingan: '+(total==null?'belum tersedia':numberID.format(total)+' kg')+'; beras tidak dibagi per blok karena sumber penggilingan belum terhubung secara pasti.',['Blok','GKP (kg)','GKG (kg)'],rows);
 }
 function nurseryAge(row) {
   if(!/^\d{4}-\d{2}-\d{2}$/.test(row.tanggal_datang||''))return 'Tanggal belum tersedia';
@@ -548,7 +548,7 @@ async function refreshHarvest() {
   try {
     const [data,catalog,milling] = await Promise.all([request('/api/records/' + table + '?' + params),table==='pisang_panen_pkk'?request('/api/harvest-phases').catch(()=>null):Promise.resolve(null),table==='padi_panen'?request('/api/records/padi_giling?limit=1&summary=1').catch(()=>null):Promise.resolve(null)]);
     if (harvestRequest !== token) return;
-    const headings = [...(table==='lahan_aktivitas'?[]:[table === 'pisang_bibit' ? 'Tanggal datang' : ['pisang_estimasi','lahan_target'].includes(table) ? 'Bulan target' : table === 'padi_rencana' ? 'Minggu mulai' : table === 'lahan_rencana' ? 'Mulai' : 'Tanggal']), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? 'Petak' : 'Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Umur saat ini / lama sejak datang','Saldo batch (pokok)'] : table.endsWith('_penjualan') ? ['Total (Rp)'] : []), 'Keterangan', 'Aksi'];
+    const headings = [...(table==='lahan_aktivitas'?[]:[table === 'pisang_bibit' ? 'Tanggal datang' : ['pisang_estimasi','lahan_target'].includes(table) ? 'Bulan target' : table === 'padi_rencana' ? 'Minggu mulai' : table === 'lahan_rencana' ? 'Mulai' : 'Tanggal']), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : ['Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Umur saat ini / lama sejak datang','Saldo batch (pokok)'] : table.endsWith('_penjualan') ? ['Total (Rp)'] : []), 'Keterangan', 'Aksi'];
     const header = document.createElement('tr');
     for (const label of headings) {
       const th = document.createElement('th');
@@ -600,7 +600,7 @@ async function openHarvestEditor(row = null) {
   form.elements.tanggal.required = table!=='lahan_aktivitas' && !(table === 'padi_panen' && row && !row.tanggal);
   form.elements.keterangan.value = row?.keterangan ?? '';
   form.elements.blok.required = (landPlanTables.includes(table)&&table!=='lahan_aktivitas') || table === 'pisang_panen_pkk' || table === 'pisang_handclass' || table === 'padi_panen';
-  get('harvest-block-caption').textContent = table.startsWith('padi_') ? 'Petak' : 'Blok';
+  get('harvest-block-caption').textContent = 'Blok';
   const skipBlock = ['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) || (table === 'padi_penjualan' && !currentIsAdmin);
   get('harvest-block-label').hidden = skipBlock;
   form.elements.blok.disabled = skipBlock;
