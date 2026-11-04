@@ -31,6 +31,23 @@ let harvestRequest;
 let salesWarningSignature = null;
 let currentIsAdmin = false;
 let currentRoles = [];
+let recentlySaved = null;
+const numberID = new Intl.NumberFormat('id-ID', {maximumFractionDigits: 3});
+function showInputSummary(element, data, note = '') {
+  element.replaceChildren();
+  const title=document.createElement('strong'); title.textContent=`Ringkasan · ${numberID.format(data.total)} catatan`;
+  const info=document.createElement('p'); info.textContent=note || 'Ringkasan seluruh catatan pada jenis data ini.';
+  const box=document.createElement('div'); box.className='summary-scroll';
+  for(const row of data.summary?.rows || []) {
+    const line=document.createElement('div'); line.className='summary-line';
+    const label=document.createElement('span'); label.textContent=data.summary.groups.map(key=>row[key]||'Belum diisi').join(' · ');
+    const value=document.createElement('strong'); value.textContent=numberID.format(row.count)+' catatan'+(row.value==null?'':' · '+numberID.format(row.value)+' '+data.summary.unit);
+    line.append(label,value); box.append(line);
+  }
+  if(data.summary?.truncated){const warning=document.createElement('p');warning.textContent='Menampilkan 300 kelompok pertama.';box.append(warning);}
+  if(!data.summary?.rows?.length)box.textContent='Belum ada data.';
+  element.append(title,info,box);
+}
 const canUseTable = table => currentRoles.some(role => availableRoles[role]?.edit === '*' || (availableRoles[role]?.edit || []).includes(table));
 const bananaTables = ['pisang_panen_pkk','pisang_box','pisang_bibit','pisang_estimasi','pisang_handclass'];
 const riceTables = ['padi_panen','padi_giling','padi_benih','padi_rencana'];
@@ -185,6 +202,7 @@ async function downloadExcel(table) {
 
 function renderRow(row) {
   const tr = document.createElement('tr');
+  if(recentlySaved?.table==='lahan_harian'&&recentlySaved.id===row.id)tr.classList.add('recent-row');
   for (const value of [row.tanggal, row.aktivitas, row.blok, row.hasil_ha == null ? null : areaFormat.format(row.hasil_ha), row.keterangan]) {
     tr.insertCell().textContent = value ?? '—';
   }
@@ -198,19 +216,36 @@ function renderRow(row) {
     button.textContent = 'Revisi';
     button.addEventListener('click', () => openEditor(row));
     action.append(button);
+    action.append(deleteButton('lahan_harian', row, refresh));
   }
   return tr;
+}
+
+function deleteButton(table, row, reload) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = 'secondary'; button.textContent = 'Hapus';
+  button.addEventListener('click', async () => {
+    if (!confirm('Hapus satu catatan ini? Penghapusan mengubah angka laporan yang terkait.')) return;
+    button.disabled = true;
+    try {
+      await request('/api/t/' + table + '/' + row.id + '?updated_at=' + encodeURIComponent(row.updated_at || ''), 'DELETE');
+      message(status, 'Catatan dihapus.');
+      await reload();
+    } catch (error) { message(status, error.message, true); button.disabled = false; }
+  });
+  return button;
 }
 
 async function refresh() {
   const current = Symbol();
   pageRequest = current;
-  const params = new URLSearchParams({ limit: pageSize, offset, sort: '-tanggal', q: search.elements.q.value.trim() });
+  const params = new URLSearchParams({ limit: pageSize, offset, sort: '-tanggal', q: search.elements.q.value.trim(), summary:'1' });
   try {
     const data = await request('/api/records/lahan_harian?' + params);
     if (current !== pageRequest) return;
     if (!params.get('q')) get('progress-count').textContent = `${new Intl.NumberFormat('id-ID').format(data.total)} catatan`;
     get('rows').replaceChildren(...data.rows.map(renderRow));
+    showInputSummary(get('progress-summary'),data,'Hasil input admin sesuai pencarian; laporan mandor dikelola di Daily Mandor.');
     get('range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada hasil';
     get('previous').disabled = data.offset === 0;
     get('next').disabled = data.offset + data.rows.length >= data.total;
@@ -384,7 +419,7 @@ async function refreshHarvest() {
   harvestRequest = token;
   const table = get('harvest-type').value;
   const sort = table === 'lahan_aktivitas' ? 'urutan' : table === 'pisang_bibit' ? '-tanggal_datang' : ['pisang_estimasi','lahan_target'].includes(table) ? '-bulan' : ['padi_rencana','lahan_rencana'].includes(table) ? '-mulai' : '-tanggal';
-  const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort });
+  const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort, summary:'1' });
   try {
     const data = await request('/api/records/' + table + '?' + params);
     if (harvestRequest !== token) return;
@@ -398,6 +433,7 @@ async function refreshHarvest() {
     get('harvest-head').replaceChildren(header);
     const rows = data.rows.map(row => {
       const tr = document.createElement('tr');
+      if(recentlySaved?.table===table&&recentlySaved.id===row.id)tr.classList.add('recent-row');
       const date = table === 'pisang_bibit' ? row.tanggal_datang : ['pisang_estimasi','lahan_target'].includes(table) ? row.bulan : ['padi_rencana','lahan_rencana'].includes(table) ? row.mulai : row.tanggal;
       for (const value of [...(table==='lahan_aktivitas'?[]:[date]), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? row.petak : row.blok]), ...harvestFields[table].map(field => row[field.key]), ...(table === 'padi_benih' ? [row.saldo_varietas] : table === 'pisang_bibit' ? [row.saldo] : table.endsWith('_penjualan') ? [row.total] : []), row.keterangan]) {
         tr.insertCell().textContent = value ?? '—';
@@ -407,10 +443,11 @@ async function refreshHarvest() {
       button.className = 'secondary';
       button.textContent = 'Revisi';
       button.addEventListener('click', () => openHarvestEditor(row));
-      tr.insertCell().append(button);
+      const action = tr.insertCell(); action.append(button, deleteButton(table, row, refreshHarvest));
       return tr;
     });
     get('harvest-rows').replaceChildren(...rows);
+    showInputSummary(get('harvest-summary'),data);
     get('harvest-range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada data';
     get('harvest-prev').disabled = data.offset === 0;
     get('harvest-next').disabled = data.offset + data.rows.length >= data.total;
@@ -603,10 +640,10 @@ get('harvest-entry').addEventListener('submit', async event => {
         return;
       }
     }
-    if (harvestEditing) await request('/api/t/' + table + '/' + harvestEditing.id, 'PUT', { ...data, updated_at: harvestEditing.updated_at ?? null });
-    else await request('/api/t/' + table, 'POST', data);
+    const result=harvestEditing ? await request('/api/t/' + table + '/' + harvestEditing.id, 'PUT', { ...data, updated_at: harvestEditing.updated_at ?? null }) : await request('/api/t/' + table, 'POST', data);
+    recentlySaved={table,id:harvestEditing?.id??result.id};
     get('harvest-editor').close();
-    harvestOffset = 0;
+    if(!harvestEditing)harvestOffset = 0;
     await refreshHarvest();
     message(status, 'Data tersimpan.');
   } catch (error) {
@@ -658,15 +695,11 @@ entry.addEventListener('submit', async event => {
   data.hasil_ha = Number(data.hasil_ha);
   const row = editing;
   try {
-    if (row) {
-      await request(tablePath + '/' + row.id, 'PUT', { ...data, updated_at: row.updated_at ?? null });
-    } else {
-      await request(tablePath, 'POST', data);
-    }
+    const result = row ? await request(tablePath + '/' + row.id, 'PUT', { ...data, updated_at: row.updated_at ?? null }) : await request(tablePath, 'POST', data);
+    recentlySaved={table:'lahan_harian',id:row?.id??result.id};
     editor.close();
     message(status, 'Progres tersimpan. Muat ulang daftar…');
-    offset = 0;
-    search.reset();
+    if(!row){offset = 0;search.reset();}
     await refresh();
     if (!status.classList.contains('error')) message(status, 'Progres tersimpan.');
   } catch (error) {

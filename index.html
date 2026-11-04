@@ -5,8 +5,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://laporankebun.vercel.app; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Input Data Kebun · VIGU</title>
-  <link rel="stylesheet" href="./style.css">
-  <script src="./app.js?v=20261104-urutan-aktivitas" type="module"></script>
+  <link rel="stylesheet" href="./style.css?v=20261104-ringkasan">
+  <script src="./app.js?v=20261104-ringkasan" type="module"></script>
 </head>
 <body>
   <header>
@@ -53,7 +53,8 @@
         <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="lahan_target">Target Tanam</option><option value="lahan_rencana">Rencana Kerja</option><option value="lahan_aktivitas">Urutan Aktivitas</option><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="pisang_estimasi">Estimasi Panen Pisang</option><option value="pisang_handclass">Hand Class Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_rencana">Rencana Mingguan Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option><option value="pisang_penjualan">Penjualan Pisang</option><option value="padi_penjualan">Penjualan Padi</option></select></label>
         <div class="bar"><button id="harvest-excel" type="button" class="secondary">Unduh Excel</button><button id="harvest-add" type="button">Tambah</button></div>
       </div>
-      <div class="table-wrap"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
+      <div id="harvest-summary" class="input-summary" aria-live="polite"></div>
+      <div class="table-wrap input-table"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
       <div class="bar"><button id="harvest-prev" class="secondary">Sebelumnya</button><span id="harvest-range"></span><button id="harvest-next" class="secondary">Berikutnya</button></div>
     </section>
     <section id="users" class="panel" hidden aria-labelledby="users-title">
@@ -69,7 +70,7 @@
         <h2 id="progress-title">Progres Harian</h2>
         <button id="back-dashboard" type="button" class="secondary">Dashboard</button>
       </div>
-      <p>Catat hasil per tanggal dan blok. Perubahan kelompok tanam dikelola di <a href="https://vigufarm-web.github.io/peta-kebun/">Peta Kebun</a>.</p>
+      <p>Catat hasil admin per tanggal dan blok. Laporan mandor dikelola di <a href="https://laporankebun.vercel.app/daily">Daily Mandor</a> dan tetap masuk laporan tanpa diinput ulang di sini. Perubahan kelompok tanam dikelola di <a href="https://vigufarm-web.github.io/peta-kebun/">Peta Kebun</a>.</p>
       <div class="bar">
         <form id="search" class="bar" role="search">
           <label>Cari tanggal, aktivitas, atau blok <input name="q" type="search"></label>
@@ -80,7 +81,8 @@
           <button id="add" type="button">Tambah hasil</button>
         </div>
       </div>
-      <div class="table-wrap">
+      <div id="progress-summary" class="input-summary" aria-live="polite"></div>
+      <div class="table-wrap input-table">
         <table>
           <thead><tr><th>Tanggal</th><th>Aktivitas</th><th>Blok</th><th>Hasil (ha)</th><th>Keterangan</th><th>Aksi</th></tr></thead>
           <tbody id="rows"></tbody>
