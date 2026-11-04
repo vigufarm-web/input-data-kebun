@@ -48,6 +48,22 @@ function showInputSummary(element, data, note = '') {
   if(!data.summary?.rows?.length)box.textContent='Belum ada data.';
   element.append(title,info,box);
 }
+function showProgressMatrix(data, locations) {
+  const host=get('progress-summary');host.replaceChildren();
+  const title=document.createElement('strong');title.textContent=`Ringkasan progres admin · ${numberID.format(data.total)} catatan`;
+  const note=document.createElement('p');note.textContent='Hektare dari input admin sesuai pencarian. Hijau: mencapai luas GIS. ↑ Baru: hasil terakhir disimpan di sesi ini. Laporan mandor dicatat di Daily.';
+  const wrap=document.createElement('div');wrap.className='matrix-scroll';
+  const table=document.createElement('table');table.className='progress-matrix';
+  const stages=['Land Clearing','Bajak 1','Dolomite','Bajak 2','Stik Ridger','Ridger','Install Drip','Stik Tanam','Tanam'];
+  const head=document.createElement('tr');for(const label of ['Blok','Luas GIS (ha)',...stages]){const th=document.createElement('th');th.textContent=label;head.append(th);}const thead=document.createElement('thead');thead.append(head);table.append(thead);
+  const areas=new Map(locations.filter(x=>x.blok_id).map(x=>[String(x.nama).toLowerCase(),Number(x.luas_ha)])),blocks=new Map();
+  for(const row of data.summary?.rows||[]){const name=String(row.blok||'Belum diisi'),stage=stages.find(x=>x.toLowerCase()===String(row.aktivitas||'').toLowerCase());if(!stage)continue;const key=name.toLowerCase();if(!blocks.has(key))blocks.set(key,{name,values:new Map()});blocks.get(key).values.set(stage,row.value);}
+  const tbody=document.createElement('tbody');for(const [key,block] of [...blocks].sort((a,b)=>a[1].name.localeCompare(b[1].name,'id',{numeric:true}))){const tr=document.createElement('tr'),area=areas.get(key);let cell=tr.insertCell();cell.textContent=block.name;cell=tr.insertCell();cell.textContent=area>0?areaFormat.format(area):'—';
+    for(const stage of stages){cell=tr.insertCell();const value=block.values.get(stage);cell.textContent=value==null?'—':areaFormat.format(value);if(value!=null&&area>0&&Number(value)>=area-0.000001){cell.classList.add('stage-full');cell.title='Mencapai luas GIS';}if(recentlySaved?.table==='lahan_harian'&&String(recentlySaved.blok||'').toLowerCase()===key&&recentlySaved.aktivitas===stage){cell.classList.add('stage-recent');cell.textContent+=' ↑';cell.title='Baru disimpan';}}
+    tbody.append(tr);
+  }
+  table.append(tbody);wrap.append(table);host.append(title,note,wrap);if(!blocks.size){const empty=document.createElement('p');empty.textContent='Belum ada progres tahap Land Clearing sampai Tanam.';host.append(empty);}
+}
 const canUseTable = table => currentRoles.some(role => availableRoles[role]?.edit === '*' || (availableRoles[role]?.edit || []).includes(table));
 const bananaTables = ['pisang_panen_pkk','pisang_box','pisang_bibit','pisang_estimasi','pisang_handclass'];
 const riceTables = ['padi_panen','padi_giling','padi_benih','padi_rencana'];
@@ -241,11 +257,11 @@ async function refresh() {
   pageRequest = current;
   const params = new URLSearchParams({ limit: pageSize, offset, sort: '-tanggal', q: search.elements.q.value.trim(), summary:'1' });
   try {
-    const data = await request('/api/records/lahan_harian?' + params);
+    const [data,locations] = await Promise.all([request('/api/records/lahan_harian?' + params),request('/api/daily/locations').catch(()=>[])]);
     if (current !== pageRequest) return;
     if (!params.get('q')) get('progress-count').textContent = `${new Intl.NumberFormat('id-ID').format(data.total)} catatan`;
     get('rows').replaceChildren(...data.rows.map(renderRow));
-    showInputSummary(get('progress-summary'),data,'Hasil input admin sesuai pencarian; laporan mandor dikelola di Daily Mandor.');
+    showProgressMatrix(data,locations);
     get('range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada hasil';
     get('previous').disabled = data.offset === 0;
     get('next').disabled = data.offset + data.rows.length >= data.total;
@@ -696,7 +712,7 @@ entry.addEventListener('submit', async event => {
   const row = editing;
   try {
     const result = row ? await request(tablePath + '/' + row.id, 'PUT', { ...data, updated_at: row.updated_at ?? null }) : await request(tablePath, 'POST', data);
-    recentlySaved={table:'lahan_harian',id:row?.id??result.id};
+    recentlySaved={table:'lahan_harian',id:row?.id??result.id,blok:data.blok,aktivitas:data.aktivitas};
     editor.close();
     message(status, 'Progres tersimpan. Muat ulang daftar…');
     if(!row){offset = 0;search.reset();}

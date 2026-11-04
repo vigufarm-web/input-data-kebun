@@ -43,6 +43,13 @@ button:disabled { opacity: .55; cursor: default; }
 .summary-scroll { max-height: 13rem; overflow: auto; font-size: 0.84rem; }
 .summary-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; border-top: 1px solid #dce6d9; }
 .summary-line strong { white-space: nowrap; }
+.matrix-scroll { max-height: 22rem; overflow: auto; border: 1px solid #dce6d9; border-radius: 8px; }
+.progress-matrix { width: max-content; min-width: 100%; font-size: .8rem; }
+.progress-matrix th,.progress-matrix td { padding: .45rem .65rem; white-space: nowrap; }
+.progress-matrix th { position: sticky; top: 0; z-index: 1; }
+.progress-matrix td:not(:first-child) { text-align: right; }
+.progress-matrix td.stage-full { background: #d8ecd7; color: #205f32; font-weight: 700; }
+.progress-matrix td.stage-recent { box-shadow: inset 0 0 0 2px #e5ad27; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 20rem)); gap: 1rem; }
 .dashboard-card { display: grid; gap: .4rem; text-align: left; background: #f2f7ef; color: #193e2c; border-color: #d9e3da; padding: 1rem; }
 .dashboard-card strong { font-size: 1.5rem; }
