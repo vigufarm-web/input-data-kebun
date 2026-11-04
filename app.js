@@ -50,6 +50,87 @@ function showInputSummary(element, data, note = '') {
   if(!data.summary?.rows?.length)box.textContent='Belum ada data.';
   element.append(title,info,box);
 }
+function showPackingSummary(element,data) {
+  element.replaceChildren();
+  const title=document.createElement('strong');title.textContent=`Ringkasan packing · ${numberID.format(data.total)} catatan`;
+  const note=document.createElement('p');note.textContent='Jumlah box per kelas dan bentuk untuk seluruh catatan.';
+  const groups=data.summary?.rows||[], forms=[...new Set(groups.map(r=>r.bentuk||'Belum diisi'))].sort((a,b)=>a.localeCompare(b,'id'));
+  const classes=[...new Set(groups.map(r=>r.kelas||'Belum diisi'))].sort((a,b)=>a.localeCompare(b,'id',{numeric:true}));
+  const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';
+  const head=document.createElement('thead'),hr=document.createElement('tr');for(const label of ['Kelas',...forms,'Total box']){const th=document.createElement('th');th.textContent=label;hr.append(th);}head.append(hr);table.append(head);
+  const body=document.createElement('tbody');for(const cls of classes){const tr=document.createElement('tr');tr.insertCell().textContent=cls;let total=0;for(const form of forms){const found=groups.filter(r=>(r.kelas||'Belum diisi')===cls&&(r.bentuk||'Belum diisi')===form);const value=found.reduce((n,r)=>n+Number(r.value||0),0);total+=value;tr.insertCell().textContent=found.length?numberID.format(value):'—';}tr.insertCell().textContent=numberID.format(total);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
+}
+function phasesForBlock(catalog,name) {
+  const key=String(name||'').trim().toLowerCase();
+  const found=(catalog?.blocks||[]).filter(b=>[b.name,...(b.aliases||[])].some(n=>String(n||'').trim().toLowerCase()===key));
+  if(found.length!==1)return [];
+  const groups=found[0].groups||[];
+  if(!groups.length||groups.some(g=>!g.cycle))return [];
+  return [...new Set(groups.map(g=>g.cycle))];
+}
+function showSummaryTable(element,title,note,headers,rows) {
+  element.replaceChildren();const heading=document.createElement('strong');heading.textContent=title;const p=document.createElement('p');p.textContent=note;
+  const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),tr=document.createElement('tr');for(const label of headers){const th=document.createElement('th');th.textContent=label;tr.append(th);}head.append(tr);table.append(head);const body=document.createElement('tbody');for(const row of rows){const line=document.createElement('tr');for(const value of row)line.insertCell().textContent=value==null?'—':String(value);body.append(line);}table.append(body);wrap.append(table);element.append(heading,p,wrap);
+}
+function showNurserySummary(element,data) {
+  const rows=(data.summary?.rows||[]).map(r=>[r.klon||'Belum diisi',r.pertama===r.terakhir?(r.pertama||'—'):[r.pertama||'?',r.terakhir||'?'].join(' s.d. '),...['qty_datang','afkir','splitting','mortal','ditanam','saldo'].map(k=>numberID.format(r[k]||0))]);
+  showSummaryTable(element,`Ringkasan bibit per varietas · ${numberID.format(data.total)} batch`,'Total seluruh batch; umur setiap batch ditampilkan pada rincian di bawah.',['Varietas','Tanggal datang','Datang','Afkir','Splitting','Mati','Ditanam','Saldo'],rows);
+}
+function showEstimateSummary(element,data) {
+  const rows=(data.summary?.rows||[]).sort((a,b)=>String(b.tahun||'').localeCompare(String(a.tahun||''))).map(r=>[r.tahun||'Belum diisi',...['value','box_a','box_b','box_c'].map(k=>r[k]==null?'—':numberID.format(r[k]))]);
+  showSummaryTable(element,`Ringkasan estimasi per tahun · ${numberID.format(data.total)} catatan`,'Jumlah box berdasarkan tahun target.',['Tahun','Total box','Kelas A','Kelas B','Kelas C'],rows);
+}
+function showRiceHarvestSummary(element,data,milling) {
+  const rows=(data.summary?.rows||[]).sort((a,b)=>String(a.petak||'').localeCompare(String(b.petak||''),'id',{numeric:true})).map(r=>[r.petak||'Belum diisi',r.value==null?'—':numberID.format(r.value),r.gkg_kg==null?'Belum dicatat':numberID.format(r.gkg_kg)+(r.gkg_count<r.count?' (sebagian tercatat)':'')]);
+  const total=milling&&!milling.summary?.truncated?(milling.summary?.rows||[]).reduce((n,r)=>n+Number(r.value||0),0):null;
+  showSummaryTable(element,`Ringkasan panen Padi · ${numberID.format(data.total)} catatan`,'GKP dan GKG per blok. Beras masuk seluruh penggilingan: '+(total==null?'belum tersedia':numberID.format(total)+' kg')+'; beras tidak dibagi per blok karena sumber penggilingan belum terhubung secara pasti.',['Blok','GKP (kg)','GKG (kg)'],rows);
+}
+function nurseryAge(row) {
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(row.tanggal_datang||''))return 'Tanggal belum tersedia';
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date());
+  const days=Math.floor((Date.parse(today+'T00:00:00Z')-Date.parse(row.tanggal_datang+'T00:00:00Z'))/86400000);
+  if(!Number.isFinite(days)||days<0)return 'Tanggal belum tiba';
+  const parts=n=>{const years=Math.floor(n/365.2425);n-=Math.round(years*365.2425);const months=Math.floor(Math.max(0,n)/30.436875);n-=Math.round(months*30.436875);return `${years} th ${months} bln ${Math.max(0,n)} hr`;};
+  const elapsed=`Sejak datang ${days} hari (± ${parts(days)})`;
+  if(row.umur_datang_bln==null||row.umur_datang_bln==='')return elapsed+' · umur awal belum diisi';
+  return `Umur ± ${parts(days+Math.round(Number(row.umur_datang_bln)*30.436875))} · ${elapsed}`;
+}
+async function showClimateGraphs(element,month) {
+  element.replaceChildren();const title=document.createElement('strong');title.textContent='Curah hujan dan suhu';
+  const label=document.createElement('label');label.textContent='Pilih bulan';const picker=document.createElement('input');picker.type='month';picker.value=month;label.append(picker);element.append(title,label);
+  const info=document.createElement('p');info.textContent='Hujan: nilai kumulatif terbesar setiap hari. Suhu: rata-rata sensor luar harian. Hari tanpa data tidak dianggap nol.';element.append(info);
+  const graphs=document.createElement('div');element.append(graphs);
+  picker.addEventListener('change',()=>{if(picker.value)showClimateGraphs(element,picker.value);});
+  try {
+    const [year,mo]=month.split('-').map(Number),end=new Date(Date.UTC(year,mo,0)).getUTCDate();
+    const data=await request(`/api/climate?from=${month}-01&to=${month}-${String(end).padStart(2,'0')}`);if(!element.contains(graphs))return;
+    const days=new Map(data.days.map(d=>[Number(d.tanggal.slice(-2)),d]));
+    for(const [heading,key,unit] of [['Curah hujan','hujan','mm'],['Suhu luar rata-rata','tavg','°C']]){
+      const h=document.createElement('h4');h.textContent=heading;graphs.append(h);const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 680 160');svg.setAttribute('role','img');svg.setAttribute('aria-label',heading+' harian, '+month);svg.style.cssText='width:100%;min-width:500px;height:160px';
+      const values=[...days.values()].map(d=>d[key]).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);if(!values.length){const p=document.createElement('p');p.textContent='Belum ada data.';graphs.append(p);continue;}
+      const min=key==='hujan'?0:Math.min(0,...values),max=Math.max(1,...values),range=max-min||1;let previous=null;
+      for(let day=1;day<=end;day++){const v=days.get(day)?.[key];if(v==null||!Number.isFinite(Number(v))){previous=null;continue;}const x=35+(day-1)*620/Math.max(1,end-1),y=130-(Number(v)-min)/range*110;const el=document.createElementNS(svg.namespaceURI,key==='hujan'?'rect':'circle');if(key==='hujan'){el.setAttribute('x',x-5);el.setAttribute('y',y);el.setAttribute('width','10');el.setAttribute('height',130-y);}else{el.setAttribute('cx',x);el.setAttribute('cy',y);el.setAttribute('r','3');if(previous){const line=document.createElementNS(svg.namespaceURI,'line');for(const [k,vv] of Object.entries({x1:previous.x,y1:previous.y,x2:x,y2:y,stroke:'#c67331','stroke-width':'2'}))line.setAttribute(k,vv);svg.append(line);}previous={x,y};}el.setAttribute('fill',key==='hujan'?'#4186b0':'#c67331');const tip=document.createElementNS(svg.namespaceURI,'title');tip.textContent=`${day} ${month}: ${numberID.format(v)} ${unit}`;el.append(tip);svg.append(el);}
+      for(const [x,text] of [[35,'1'],[330,'15'],[650,String(end)]]){const label=document.createElementNS(svg.namespaceURI,'text');label.setAttribute('x',x);label.setAttribute('y','151');label.setAttribute('font-size','12');label.textContent=text;svg.append(label);}const scale=document.createElementNS(svg.namespaceURI,'text');scale.setAttribute('x','5');scale.setAttribute('y','15');scale.setAttribute('font-size','11');scale.textContent=numberID.format(max)+' '+unit;svg.append(scale);const scroll=document.createElement('div');scroll.style.overflowX='auto';scroll.append(svg);graphs.append(scroll);
+    }
+  }catch(error){graphs.textContent='Grafik belum dapat dimuat: '+error.message;}
+}
+function showBananaHarvestSummary(element,data,catalog) {
+  element.replaceChildren();const title=document.createElement('strong');title.textContent=`Ringkasan panen Pisang · ${numberID.format(data.total)} catatan`;
+  const note=document.createElement('p');note.textContent='Total panen seluruh catatan per blok. Fase adalah kondisi GIS saat ini, bukan fase seluruh riwayat panen.';
+  const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),hr=document.createElement('tr');for(const x of ['Blok','Fase GIS saat ini','Total panen (tandan / pokok)']){const th=document.createElement('th');th.textContent=x;hr.append(th);}head.append(hr);table.append(head);
+  const body=document.createElement('tbody');for(const r of [...(data.summary?.rows||[])].sort((a,b)=>String(a.blok||'').localeCompare(String(b.blok||''),'id',{numeric:true}))){const tr=document.createElement('tr');tr.insertCell().textContent=r.blok||'Belum diisi';tr.insertCell().textContent=phasesForBlock(catalog,r.blok).join(' / ')||'Belum tersedia';tr.insertCell().textContent=r.value==null?'—':numberID.format(r.value);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
+}
+let phaseRequest=0;
+async function updateHarvestPhase() {
+  if(get('harvest-type').value!=='pisang_panen_pkk')return;
+  const form=get('harvest-entry'),phase=form.elements.fase,block=form.elements.blok.value,at=form.elements.tanggal.value,token=++phaseRequest;
+  if(!block||!at){phase.value='';get('harvest-save').disabled=false;return;}
+  phase.value='';
+  get('harvest-save').disabled=true;
+  try {const catalog=await request('/api/harvest-phases?at='+encodeURIComponent(at));if(token!==phaseRequest||!get('harvest-editor').open)return;const cycles=phasesForBlock(catalog,block);phase.value=cycles.length===1?cycles[0]:'';message(get('harvest-message'),cycles.length===1?'Fase mengikuti GIS pada tanggal panen.':cycles.length>1?'Blok memiliki beberapa fase. Pilih fase panen yang sesuai.':'Fase GIS belum tersedia. Pilih fase setelah memeriksa data tanam.');}
+  catch(error){if(token===phaseRequest)message(get('harvest-message'),'Fase GIS belum dapat dimuat. Pilih fase setelah memeriksa data tanam.',true);}
+  finally{if(token===phaseRequest&&get('harvest-editor').open)get('harvest-save').disabled=false;}
+}
 function showProgressMatrix(data, locations) {
   const host=get('progress-summary');host.replaceChildren();
   const title=document.createElement('strong');title.textContent=`Ringkasan progres admin · ${numberID.format(data.total)} catatan`;
@@ -145,7 +226,6 @@ const harvestFields = {
     { key: 'splitting', label: 'Tambahan splitting (pokok)', type: 'number', step: '1' },
     { key: 'mortal', label: 'Total mati (pokok)', type: 'number', step: '1' },
     { key: 'ditanam', label: 'Total ditanam dari batch (pokok)', type: 'number', step: '1' },
-    { key: 'harga_satuan', label: 'Harga/bibit', type: 'number', step: 'any' },
   ],
   pisang_estimasi: [
     { key: 'box', label: 'Estimasi total (box)', type: 'number', required: true, step: '1' },
@@ -166,7 +246,6 @@ const harvestFields = {
     { key: 'tempat_giling', label: 'Tempat giling', type: 'text' },
   ],
   padi_panen: [
-    { key: 'jumlah_karung', label: 'Jumlah karung', type: 'number', step: '1' },
     { key: 'gkp_kg', label: 'Gabah / GKP (kg)', type: 'number', required: true, step: 'any' },
     { key: 'gkg_kg', label: 'GKG (kg)', type: 'number', step: 'any' },
   ],
@@ -467,9 +546,9 @@ async function refreshHarvest() {
   const sort = table === 'lahan_aktivitas' ? 'urutan' : table === 'pisang_bibit' ? '-tanggal_datang' : ['pisang_estimasi','lahan_target'].includes(table) ? '-bulan' : ['padi_rencana','lahan_rencana'].includes(table) ? '-mulai' : '-tanggal';
   const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort, summary:'1' });
   try {
-    const data = await request('/api/records/' + table + '?' + params);
+    const [data,catalog,milling] = await Promise.all([request('/api/records/' + table + '?' + params),table==='pisang_panen_pkk'?request('/api/harvest-phases').catch(()=>null):Promise.resolve(null),table==='padi_panen'?request('/api/records/padi_giling?limit=1&summary=1').catch(()=>null):Promise.resolve(null)]);
     if (harvestRequest !== token) return;
-    const headings = [...(table==='lahan_aktivitas'?[]:[table === 'pisang_bibit' ? 'Tanggal datang' : ['pisang_estimasi','lahan_target'].includes(table) ? 'Bulan target' : table === 'padi_rencana' ? 'Minggu mulai' : table === 'lahan_rencana' ? 'Mulai' : 'Tanggal']), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? 'Petak' : 'Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Saldo batch (pokok)'] : table.endsWith('_penjualan') ? ['Total (Rp)'] : []), 'Keterangan', 'Aksi'];
+    const headings = [...(table==='lahan_aktivitas'?[]:[table === 'pisang_bibit' ? 'Tanggal datang' : ['pisang_estimasi','lahan_target'].includes(table) ? 'Bulan target' : table === 'padi_rencana' ? 'Minggu mulai' : table === 'lahan_rencana' ? 'Mulai' : 'Tanggal']), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? 'Petak' : 'Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Umur saat ini / lama sejak datang','Saldo batch (pokok)'] : table.endsWith('_penjualan') ? ['Total (Rp)'] : []), 'Keterangan', 'Aksi'];
     const header = document.createElement('tr');
     for (const label of headings) {
       const th = document.createElement('th');
@@ -481,7 +560,7 @@ async function refreshHarvest() {
       const tr = document.createElement('tr');
       if(recentlySaved?.table===table&&recentlySaved.id===row.id)tr.classList.add('recent-row');
       const date = table === 'pisang_bibit' ? row.tanggal_datang : ['pisang_estimasi','lahan_target'].includes(table) ? row.bulan : ['padi_rencana','lahan_rencana'].includes(table) ? row.mulai : row.tanggal;
-      for (const value of [...(table==='lahan_aktivitas'?[]:[date]), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? row.petak : row.blok]), ...harvestFields[table].map(field => row[field.key]), ...(table === 'padi_benih' ? [row.saldo_varietas] : table === 'pisang_bibit' ? [row.saldo] : table.endsWith('_penjualan') ? [row.total] : []), row.keterangan]) {
+      for (const value of [...(table==='lahan_aktivitas'?[]:[date]), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : [table.startsWith('padi_') ? row.petak : row.blok]), ...harvestFields[table].map(field => row[field.key]), ...(table === 'padi_benih' ? [row.saldo_varietas] : table === 'pisang_bibit' ? [nurseryAge(row),row.saldo] : table.endsWith('_penjualan') ? [row.total] : []), row.keterangan]) {
         tr.insertCell().textContent = value ?? '—';
       }
       const button = document.createElement('button');
@@ -493,7 +572,7 @@ async function refreshHarvest() {
       return tr;
     });
     get('harvest-rows').replaceChildren(...rows);
-    showInputSummary(get('harvest-summary'),data);
+    if(table==='pisang_box')showPackingSummary(get('harvest-summary'),data);else if(table==='pisang_panen_pkk')showBananaHarvestSummary(get('harvest-summary'),data,catalog);else if(table==='pisang_bibit')showNurserySummary(get('harvest-summary'),data);else if(table==='pisang_estimasi')showEstimateSummary(get('harvest-summary'),data);else if(table==='padi_panen')showRiceHarvestSummary(get('harvest-summary'),data,milling);else if(table==='iklim')showClimateGraphs(get('harvest-summary'),new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date()).slice(0,7));else showInputSummary(get('harvest-summary'),data);
     get('harvest-range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada data';
     get('harvest-prev').disabled = data.offset === 0;
     get('harvest-next').disabled = data.offset + data.rows.length >= data.total;
@@ -503,6 +582,7 @@ async function refreshHarvest() {
 }
 
 async function openHarvestEditor(row = null) {
+  phaseRequest++;
   const form = get('harvest-entry');
   const table = get('harvest-type').value;
   harvestEditing = row;
@@ -546,6 +626,7 @@ async function openHarvestEditor(row = null) {
     return label;
   });
   get('harvest-fields').replaceChildren(...fields);
+  if(table==='pisang_panen_pkk')form.elements.fase.required=!row;
   message(get('harvest-message'), 'Memuat blok…');
   get('harvest-save').disabled = true;
   get('harvest-editor').showModal();
@@ -566,6 +647,9 @@ async function openHarvestEditor(row = null) {
     message(get('harvest-message'), error.message, true);
   }
 }
+
+get('harvest-entry').elements.blok.addEventListener('change',updateHarvestPhase);
+get('harvest-entry').elements.tanggal.addEventListener('change',updateHarvestPhase);
 
 get('open-land-plans').addEventListener('click', () => {
   dashboard.hidden = true;
