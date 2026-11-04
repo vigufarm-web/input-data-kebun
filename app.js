@@ -1,4 +1,12 @@
 const get = id => document.getElementById(id);
+const apiOrigin = location.hostname === 'vigufarm-web.github.io' ? 'https://laporankebun.vercel.app' : location.origin;
+const apiPrefix = apiOrigin + '/api/input-client';
+const sessionKey = 'input-kebun-session-v1';
+let sessionToken = sessionStorage.getItem(sessionKey) || '';
+function inputApi(path) {
+  if (!path.startsWith('/api/')) throw new Error('Alamat layanan tidak valid.');
+  return apiPrefix + path.slice('/api'.length);
+}
 const login = get('login');
 const dashboard = get('dashboard');
 const progress = get('progress');
@@ -22,6 +30,10 @@ let harvestSaving = false;
 let harvestRequest;
 let salesWarningSignature = null;
 let currentIsAdmin = false;
+let currentRoles = [];
+const canUseTable = table => currentRoles.some(role => availableRoles[role]?.edit === '*' || (availableRoles[role]?.edit || []).includes(table));
+const bananaTables = ['pisang_panen_pkk','pisang_box','pisang_bibit','pisang_estimasi','pisang_handclass'];
+const riceTables = ['padi_panen','padi_giling','padi_benih','padi_rencana'];
 const harvestFields = {
   padi_rencana: [
     { key: 'selesai', label: 'Minggu selesai', type: 'date', required: true },
@@ -128,15 +140,26 @@ function message(element, text, error = false) {
 }
 
 async function request(path, method = 'GET', data) {
-  const response = await fetch(path, {
+  const response = await fetch(inputApi(path), {
     method,
-    credentials: 'same-origin',
-    headers: data === undefined ? {} : { 'Content-Type': 'application/json' },
+    credentials: 'omit',
+    headers: { ...(data === undefined ? {} : { 'Content-Type': 'application/json' }), ...(sessionToken ? { Authorization: 'Bearer ' + sessionToken } : {}) },
     body: data === undefined ? undefined : JSON.stringify(data),
   });
   const result = await response.json().catch(() => null);
+  if (response.status === 401 && path === '/api/me') { sessionStorage.removeItem(sessionKey); sessionToken = ''; return { user: null, roles: {} }; }
   if (!response.ok || !result) throw new Error(result?.error || 'Layanan Input Data Kebun belum dapat dihubungi.');
+  if (path === '/api/login') { sessionToken = result.token; sessionStorage.setItem(sessionKey, sessionToken); }
+  if (path === '/api/logout') { sessionToken = ''; sessionStorage.removeItem(sessionKey); }
   return result;
+}
+
+async function downloadExcel(table) {
+  const response = await fetch(inputApi('/api/excel/download?tables=' + encodeURIComponent(table)), { credentials: 'omit', headers: { Authorization: 'Bearer ' + sessionToken } });
+  if (!response.ok) { const error = await response.json().catch(() => null); throw new Error(error?.error || 'Excel belum dapat diunduh.'); }
+  const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
+  link.href = url; link.download = 'Data Kebun - ' + table + '.xlsx'; document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function renderRow(row) {
@@ -220,30 +243,18 @@ async function showSession() {
   const mandor = user.peran.some(role => role.startsWith('daily_'));
   const sales = !mandor && user.peran.includes('penjualan');
   currentIsAdmin = admin;
-  for (const id of ['open-progress', 'open-users', 'open-harvest', 'open-milling', 'open-sales', 'open-climate']) {
-    get(id).hidden = !admin;
-  }
+  currentRoles = user.peran;
+  get('open-progress').hidden = !canUseTable('lahan_harian');
+  get('open-users').hidden = !admin;
+  get('open-harvest').hidden = !bananaTables.some(canUseTable);
+  get('open-milling').hidden = !riceTables.some(canUseTable);
+  get('open-climate').hidden = !canUseTable('iklim');
   get('open-sales').hidden = !admin && !sales;
   get('open-daily').hidden = !admin && !mandor;
   get('dashboard-title').textContent = admin ? 'Dashboard Admin' : mandor ? 'Dashboard Mandor' : sales ? 'Dashboard Penjualan' : 'Dashboard';
-  if (!user.peran.includes('admin')) {
-    get('add').disabled = true;
-    get('open-progress').disabled = true;
-    get('open-users').disabled = true;
-    get('open-harvest').disabled = true;
-    get('open-milling').disabled = true;
-    get('open-climate').disabled = true;
-    message(status, mandor ? 'Buka Daily Mandor untuk mengisi rencana dan laporan sesuai divisi Anda.' : sales ? 'Buka Penjualan untuk mengelola penjualan sesuai hak akses Anda.' : 'Modul staf sedang disiapkan. Gunakan Laporan Kebun untuk pekerjaan sesuai hak akses Anda.');
-    return;
-  }
-  get('add').disabled = false;
-  get('open-progress').disabled = false;
-  get('open-users').disabled = false;
-  get('open-harvest').disabled = false;
-  get('open-milling').disabled = false;
-  get('open-climate').disabled = false;
+  get('add').disabled = !canUseTable('lahan_harian');
   message(status, `Masuk sebagai ${user.nama || user.username}.`);
-  await refresh();
+  if (canUseTable('lahan_harian')) await refresh();
 }
 
 login.addEventListener('submit', async event => {
@@ -350,7 +361,6 @@ async function refreshHarvest() {
   const token = Symbol();
   harvestRequest = token;
   const table = get('harvest-type').value;
-  get('harvest-excel').href = '/api/excel/download?tables=' + encodeURIComponent(table);
   const sort = table === 'pisang_bibit' ? '-tanggal_datang' : table === 'pisang_estimasi' ? '-bulan' : table === 'padi_rencana' ? '-mulai' : '-tanggal';
   const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort });
   try {
@@ -452,8 +462,8 @@ get('open-harvest').addEventListener('click', () => {
   get('harvest-section-title').textContent = 'Pisang · Bibit, Panen & Packing';
   get('harvest-description').textContent = 'Catat batch bibit, panen per blok, dan hasil packing per kelas.';
   get('harvest-type-label').hidden = false;
-  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('pisang_') || option.value.endsWith('_penjualan');
-  get('harvest-type').value = 'pisang_panen_pkk';
+  for (const option of get('harvest-type').options) option.hidden = !bananaTables.includes(option.value) || !canUseTable(option.value);
+  get('harvest-type').value = bananaTables.find(canUseTable);
   harvestOffset = 0;
   refreshHarvest();
 });
@@ -463,21 +473,13 @@ get('open-milling').addEventListener('click', () => {
   get('harvest-section-title').textContent = 'Padi · Benih, Panen & Rencana';
   get('harvest-description').textContent = 'Catat mutasi benih, gabah per petak, dan beras yang masuk setelah digiling.';
   get('harvest-type-label').hidden = false;
-  for (const option of get('harvest-type').options) option.hidden = !option.value.startsWith('padi_') || option.value.endsWith('_penjualan');
-  get('harvest-type').value = 'padi_panen';
+  for (const option of get('harvest-type').options) option.hidden = !riceTables.includes(option.value) || !canUseTable(option.value);
+  get('harvest-type').value = riceTables.find(canUseTable);
   harvestOffset = 0;
   refreshHarvest();
 });
 get('open-sales').addEventListener('click', () => {
-  dashboard.hidden = true;
-  get('harvest').hidden = false;
-  get('harvest-section-title').textContent = 'Penjualan Pisang & Padi';
-  get('harvest-description').textContent = 'Periksa nomor surat jalan dan rincian sebelum menambah. Untuk revisi, gunakan tombol Revisi pada baris yang ada. Nominal kosong dihitung dari harga dan jumlah.';
-  get('harvest-type-label').hidden = false;
-  for (const option of get('harvest-type').options) option.hidden = !option.value.endsWith('_penjualan');
-  get('harvest-type').value = 'pisang_penjualan';
-  harvestOffset = 0;
-  refreshHarvest();
+  location.href = 'https://vigufarm-web.github.io/penjualan/';
 });
 get('open-climate').addEventListener('click', () => {
   dashboard.hidden = true;
@@ -494,6 +496,8 @@ get('harvest-type').addEventListener('change', () => { harvestOffset = 0; refres
 get('harvest-prev').addEventListener('click', () => { harvestOffset = Math.max(0, harvestOffset - pageSize); refreshHarvest(); });
 get('harvest-next').addEventListener('click', () => { harvestOffset += pageSize; refreshHarvest(); });
 get('harvest-add').addEventListener('click', () => openHarvestEditor());
+get('harvest-excel').addEventListener('click', () => downloadExcel(get('harvest-type').value).catch(error => message(status, error.message, true)));
+get('progress-excel').addEventListener('click', () => downloadExcel('lahan_harian').catch(error => message(status, error.message, true)));
 get('harvest-cancel').addEventListener('click', () => get('harvest-editor').close());
 get('harvest-editor').addEventListener('cancel', event => { if (harvestSaving) event.preventDefault(); });
 
