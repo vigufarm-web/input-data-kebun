@@ -16,7 +16,7 @@ const search = get('search');
 const status = get('status');
 const tablePath = '/api/t/lahan_harian';
 const pageSize = 50;
-const areaFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 8 });
+const areaFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 });
 let offset = 0;
 let editing = null;
 let pageRequest;
@@ -32,6 +32,8 @@ let salesWarningSignature = null;
 let currentIsAdmin = false;
 let currentRoles = [];
 let recentlySaved = null;
+let progressLocations = [];
+let convertedArea = null;
 const numberID = new Intl.NumberFormat('id-ID', {maximumFractionDigits: 3});
 function showInputSummary(element, data, note = '') {
   element.replaceChildren();
@@ -281,6 +283,7 @@ async function openEditor(row = null) {
   if (editor.open) return;
   editing = row;
   entry.reset();
+  updatePlantCountVisibility();
   get('edit-title').textContent = row ? 'Revisi progres harian' : 'Tambah progres harian';
   message(get('edit-message'), 'Memuat pilihan…');
   get('save').disabled = true;
@@ -289,8 +292,10 @@ async function openEditor(row = null) {
   try {
     const [activities, locations] = await Promise.all([request('/api/t/lahan_aktivitas'), request('/api/daily/locations')]);
     if (!editor.open || editing !== editorRow) return;
+    progressLocations = locations;
     setOptions(entry.elements.aktivitas, activities.map(a => a.aktivitas).filter(Boolean), row?.aktivitas);
     setOptions(entry.elements.blok, locations.filter(b => b.blok_id).map(b => b.nama), row?.blok);
+    updatePlantCountVisibility();
     entry.elements.tanggal.value = row?.tanggal ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
     entry.elements.hasil_ha.value = row?.hasil_input_ha ?? row?.hasil_ha ?? '';
     entry.elements.keterangan.value = row?.keterangan ?? '';
@@ -300,6 +305,31 @@ async function openEditor(row = null) {
     message(get('edit-message'), error.message, true);
   }
 }
+
+function updatePlantCountVisibility() {
+  if (convertedArea !== null) entry.elements.hasil_ha.value = '';
+  const location = progressLocations.find(b => b.nama === entry.elements.blok.value);
+  const visible = String(location?.divisi || '').trim().toLowerCase() === 'pisang' && ['tanam', 'stik tanam'].includes(entry.elements.aktivitas.value.trim().toLowerCase());
+  get('plant-count-label').hidden = !visible;
+  get('plant-count').value = '';
+  get('plant-count').setCustomValidity('');
+  convertedArea = null;
+}
+entry.elements.aktivitas.addEventListener('change', updatePlantCountVisibility);
+entry.elements.blok.addEventListener('change', updatePlantCountVisibility);
+get('plant-count').addEventListener('input', event => {
+  const input = event.currentTarget;
+  const count = input.value === '' ? null : Number(input.value);
+  const valid = count === null || (Number.isSafeInteger(count) && count >= 0);
+  input.setCustomValidity(valid ? '' : 'Jumlah pokok harus berupa bilangan bulat tidak negatif.');
+  convertedArea = count === null || !valid ? null : count / 2000;
+  entry.elements.hasil_ha.value = convertedArea === null ? '' : String(Math.round(count / 2) / 1000);
+});
+entry.elements.hasil_ha.addEventListener('input', () => {
+  get('plant-count').value = '';
+  get('plant-count').setCustomValidity('');
+  convertedArea = null;
+});
 
 async function showSession() {
   const { user, roles } = await request('/api/me');
@@ -708,7 +738,7 @@ entry.addEventListener('submit', async event => {
   get('save').disabled = true;
   get('cancel').disabled = true;
   const data = Object.fromEntries(new FormData(entry));
-  data.hasil_ha = Number(data.hasil_ha);
+  data.hasil_ha = convertedArea ?? Number(data.hasil_ha);
   const row = editing;
   try {
     const result = row ? await request(tablePath + '/' + row.id, 'PUT', { ...data, updated_at: row.updated_at ?? null }) : await request(tablePath, 'POST', data);
