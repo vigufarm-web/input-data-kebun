@@ -284,7 +284,11 @@ function renderRow(row) {
   for (const value of [row.tanggal, row.aktivitas, row.blok, entered == null ? null : areaFormat.format(entered), effective == null ? null : areaFormat.format(effective), row.keterangan]) {
     tr.insertCell().textContent = value ?? '—';
   }
-  if(entered!=null&&effective!=null&&Number(entered)-Number(effective)>0.0000005){tr.cells[4].title='Dibatasi luas blok karena sebagian atau seluruh tahap sudah tercatat. Angka yang diisi tetap tersimpan.';tr.cells[4].textContent+=' *';}
+  if(entered!=null&&effective!=null&&Number(entered)-Number(effective)>0.0000005){
+    const full=Number(effective)<=0.0000005;
+    tr.cells[4].textContent+=full?' · Tahap blok sudah penuh':' · Sebagian dibatasi luas';
+    tr.cells[4].title='Angka yang diisi tetap tersimpan; progres tidak boleh melebihi luas blok untuk tahap ini.';
+  }
   const action = tr.insertCell();
   if (row.daily_report_id) {
     action.textContent = 'Dari Daily Mandor';
@@ -812,7 +816,9 @@ entry.addEventListener('submit', async event => {
     if (!status.classList.contains('error')) {
       const entered=result.hasil_input_ha, effective=result.hasil_ha;
       if(entered!=null&&effective!=null&&Number(entered)-Number(effective)>0.0000005)
-        message(status, `Tersimpan: ${areaFormat.format(entered)} ha diisi; ${areaFormat.format(effective)} ha masuk progres. Sisanya melampaui luas blok setelah memperhitungkan catatan sebelumnya. Periksa rincian jika ada catatan ganda.`);
+        message(status, Number(effective)<=0.0000005
+          ? `Tersimpan: ${areaFormat.format(entered)} ha diisi. Tahap pekerjaan pada blok ini sudah penuh, sehingga 0 ha tambahan masuk progres. Periksa rincian jika ada catatan ganda.`
+          : `Tersimpan: ${areaFormat.format(entered)} ha diisi; ${areaFormat.format(effective)} ha masuk progres. Sebagian dibatasi karena total tahap mencapai luas blok. Periksa rincian jika ada catatan ganda.`);
       else message(status, 'Progres tersimpan.');
     }
   } catch (error) {
