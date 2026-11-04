@@ -32,7 +32,8 @@ let salesWarningSignature = null;
 let currentIsAdmin = false;
 let currentRoles = [];
 const canUseTable = table => currentRoles.some(role => availableRoles[role]?.edit === '*' || (availableRoles[role]?.edit || []).includes(table));
-const bananaTables = ['pisang_panen_pkk','pisang_box','pisang_bibit','pisang_estimasi','pisang_handclass'];const riceTables = ['padi_panen','padi_giling','padi_benih','padi_rencana'];
+const bananaTables = ['pisang_panen_pkk','pisang_box','pisang_bibit','pisang_estimasi','pisang_handclass'];
+const riceTables = ['padi_panen','padi_giling','padi_benih','padi_rencana'];
 const landPlanTables = ['lahan_target','lahan_rencana','lahan_aktivitas'];
 const harvestFields = {
   lahan_aktivitas: [
