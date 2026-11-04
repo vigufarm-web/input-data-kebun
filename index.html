@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Input Data Kebun · VIGU</title>
   <link rel="stylesheet" href="./style.css?v=20261104-matriks">
-  <script src="./app.js?v=20261104-matriks" type="module"></script>
+  <script src="./app.js?v=20261104-admin-pokok" type="module"></script>
 </head>
 <body>
   <header>
@@ -100,6 +100,7 @@
         <label>Tanggal <input name="tanggal" type="date" required></label>
         <label>Aktivitas <select name="aktivitas" required></select></label>
         <label>Blok <select name="blok" required></select></label>
+        <label id="plant-count-label" hidden>Jumlah pokok (opsional) <input id="plant-count" type="number" min="0" step="1" inputmode="numeric"><small>2.000 pokok = 1 ha. Tampilan dibulatkan 3 desimal; perhitungan tetap akurat. Hektare juga dapat diisi langsung.</small></label>
         <label>Hasil pekerjaan (ha) <input name="hasil_ha" type="number" min="0" step="any" required></label>
         <label>Keterangan <textarea name="keterangan" rows="3"></textarea></label>
         <p id="edit-message" role="status"></p>
