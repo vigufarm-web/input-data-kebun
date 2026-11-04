@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Input Data Kebun · VIGU</title>
   <link rel="stylesheet" href="./style.css">
-  <script src="./app.js?v=20261104-target-rencana" type="module"></script>
+  <script src="./app.js?v=20261104-urutan-aktivitas" type="module"></script>
 </head>
 <body>
   <header>
@@ -50,7 +50,7 @@
       <div class="bar"><h2 id="harvest-section-title">Pisang · Panen &amp; Packing</h2><button id="harvest-back" type="button" class="secondary">Dashboard</button></div>
       <p id="harvest-description">Panen mencatat tandan per blok. Packing mencatat hasil box per kelas.</p>
       <div class="bar">
-        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="lahan_target">Target Tanam</option><option value="lahan_rencana">Rencana Kerja</option><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="pisang_estimasi">Estimasi Panen Pisang</option><option value="pisang_handclass">Hand Class Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_rencana">Rencana Mingguan Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option><option value="pisang_penjualan">Penjualan Pisang</option><option value="padi_penjualan">Penjualan Padi</option></select></label>
+        <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="lahan_target">Target Tanam</option><option value="lahan_rencana">Rencana Kerja</option><option value="lahan_aktivitas">Urutan Aktivitas</option><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="pisang_estimasi">Estimasi Panen Pisang</option><option value="pisang_handclass">Hand Class Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_rencana">Rencana Mingguan Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option><option value="pisang_penjualan">Penjualan Pisang</option><option value="padi_penjualan">Penjualan Padi</option></select></label>
         <div class="bar"><button id="harvest-excel" type="button" class="secondary">Unduh Excel</button><button id="harvest-add" type="button">Tambah</button></div>
       </div>
       <div class="table-wrap"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
@@ -122,7 +122,7 @@
     <dialog id="harvest-editor">
       <form id="harvest-entry">
         <h2 id="harvest-title"></h2>
-        <label><span id="harvest-date-label">Tanggal</span> <input name="tanggal" type="date" required></label>
+        <label id="harvest-date-container"><span id="harvest-date-label">Tanggal</span> <input name="tanggal" type="date" required></label>
         <label id="harvest-block-label"><span id="harvest-block-caption">Blok</span> <select name="blok"></select></label>
         <div id="harvest-fields"></div>
         <label>Keterangan <textarea name="keterangan" rows="2"></textarea></label>
