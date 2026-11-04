@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Input Data Kebun · VIGU</title>
   <link rel="stylesheet" href="./style.css?v=20261104-ringkasan">
-  <script src="./app.js?v=20261104-panen-tanpa-fase" type="module"></script>
+  <script src="./app.js?v=20261104-progres-tersimpan" type="module"></script>
 </head>
 <body>
   <header>
@@ -82,9 +82,10 @@
         </div>
       </div>
       <div id="progress-summary" class="input-summary" aria-live="polite"></div>
+      <p><small>Diisi = luas yang tersimpan dari input. Masuk progres = luas yang dihitung setelah dibatasi luas blok. Tanda * berarti nilainya berbeda; periksa apakah tahap sudah tercatat atau ada data ganda.</small></p>
       <div class="table-wrap input-table">
         <table>
-          <thead><tr><th>Tanggal</th><th>Aktivitas</th><th>Blok</th><th>Hasil (ha)</th><th>Keterangan</th><th>Aksi</th></tr></thead>
+          <thead><tr><th>Tanggal</th><th>Aktivitas</th><th>Blok</th><th>Diisi (ha)</th><th>Masuk progres (ha)</th><th>Keterangan</th><th>Aksi</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>

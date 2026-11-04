@@ -280,9 +280,11 @@ async function downloadExcel(table) {
 function renderRow(row) {
   const tr = document.createElement('tr');
   if(recentlySaved?.table==='lahan_harian'&&recentlySaved.id===row.id)tr.classList.add('recent-row');
-  for (const value of [row.tanggal, row.aktivitas, row.blok, row.hasil_ha == null ? null : areaFormat.format(row.hasil_ha), row.keterangan]) {
+  const entered=row.hasil_input_ha ?? row.hasil_ha, effective=row.hasil_ha;
+  for (const value of [row.tanggal, row.aktivitas, row.blok, entered == null ? null : areaFormat.format(entered), effective == null ? null : areaFormat.format(effective), row.keterangan]) {
     tr.insertCell().textContent = value ?? '—';
   }
+  if(entered!=null&&effective!=null&&Number(entered)-Number(effective)>0.0000005){tr.cells[4].title='Dibatasi luas blok karena sebagian atau seluruh tahap sudah tercatat. Angka yang diisi tetap tersimpan.';tr.cells[4].textContent+=' *';}
   const action = tr.insertCell();
   if (row.daily_report_id) {
     action.textContent = 'Dari Daily Mandor';
@@ -807,7 +809,12 @@ entry.addEventListener('submit', async event => {
     message(status, 'Progres tersimpan. Muat ulang daftar…');
     if(!row){offset = 0;search.reset();}
     await refresh();
-    if (!status.classList.contains('error')) message(status, 'Progres tersimpan.');
+    if (!status.classList.contains('error')) {
+      const entered=result.hasil_input_ha, effective=result.hasil_ha;
+      if(entered!=null&&effective!=null&&Number(entered)-Number(effective)>0.0000005)
+        message(status, `Tersimpan: ${areaFormat.format(entered)} ha diisi; ${areaFormat.format(effective)} ha masuk progres. Sisanya melampaui luas blok setelah memperhitungkan catatan sebelumnya. Periksa rincian jika ada catatan ganda.`);
+      else message(status, 'Progres tersimpan.');
+    }
   } catch (error) {
     message(get('edit-message'), error.message, true);
   } finally {
