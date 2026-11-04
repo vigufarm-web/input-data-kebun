@@ -60,14 +60,6 @@ function showPackingSummary(element,data) {
   const head=document.createElement('thead'),hr=document.createElement('tr');for(const label of ['Kelas',...forms,'Total box']){const th=document.createElement('th');th.textContent=label;hr.append(th);}head.append(hr);table.append(head);
   const body=document.createElement('tbody');for(const cls of classes){const tr=document.createElement('tr');tr.insertCell().textContent=cls;let total=0;for(const form of forms){const found=groups.filter(r=>(r.kelas||'Belum diisi')===cls&&(r.bentuk||'Belum diisi')===form);const value=found.reduce((n,r)=>n+Number(r.value||0),0);total+=value;tr.insertCell().textContent=found.length?numberID.format(value):'—';}tr.insertCell().textContent=numberID.format(total);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
 }
-function phasesForBlock(catalog,name) {
-  const key=String(name||'').trim().toLowerCase();
-  const found=(catalog?.blocks||[]).filter(b=>[b.name,...(b.aliases||[])].some(n=>String(n||'').trim().toLowerCase()===key));
-  if(found.length!==1)return [];
-  const groups=found[0].groups||[];
-  if(!groups.length||groups.some(g=>!g.cycle))return [];
-  return [...new Set(groups.map(g=>g.cycle))];
-}
 function showSummaryTable(element,title,note,headers,rows) {
   element.replaceChildren();const heading=document.createElement('strong');heading.textContent=title;const p=document.createElement('p');p.textContent=note;
   const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),tr=document.createElement('tr');for(const label of headers){const th=document.createElement('th');th.textContent=label;tr.append(th);}head.append(tr);table.append(head);const body=document.createElement('tbody');for(const row of rows){const line=document.createElement('tr');for(const value of row)line.insertCell().textContent=value==null?'—':String(value);body.append(line);}table.append(body);wrap.append(table);element.append(heading,p,wrap);
@@ -114,22 +106,11 @@ async function showClimateGraphs(element,month) {
     }
   }catch(error){graphs.textContent='Grafik belum dapat dimuat: '+error.message;}
 }
-function showBananaHarvestSummary(element,data,catalog) {
+function showBananaHarvestSummary(element,data) {
   element.replaceChildren();const title=document.createElement('strong');title.textContent=`Ringkasan panen Pisang · ${numberID.format(data.total)} catatan`;
-  const note=document.createElement('p');note.textContent='Total panen seluruh catatan per blok. Fase adalah kondisi GIS saat ini, bukan fase seluruh riwayat panen.';
-  const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),hr=document.createElement('tr');for(const x of ['Blok','Fase GIS saat ini','Total panen (tandan / pokok)']){const th=document.createElement('th');th.textContent=x;hr.append(th);}head.append(hr);table.append(head);
-  const body=document.createElement('tbody');for(const r of [...(data.summary?.rows||[])].sort((a,b)=>String(a.blok||'').localeCompare(String(b.blok||''),'id',{numeric:true}))){const tr=document.createElement('tr');tr.insertCell().textContent=r.blok||'Belum diisi';tr.insertCell().textContent=phasesForBlock(catalog,r.blok).join(' / ')||'Belum tersedia';tr.insertCell().textContent=r.value==null?'—':numberID.format(r.value);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
-}
-let phaseRequest=0;
-async function updateHarvestPhase() {
-  if(get('harvest-type').value!=='pisang_panen_pkk')return;
-  const form=get('harvest-entry'),phase=form.elements.fase,block=form.elements.blok.value,at=form.elements.tanggal.value,token=++phaseRequest;
-  if(!block||!at){phase.value='';get('harvest-save').disabled=false;return;}
-  phase.value='';
-  get('harvest-save').disabled=true;
-  try {const catalog=await request('/api/harvest-phases?at='+encodeURIComponent(at));if(token!==phaseRequest||!get('harvest-editor').open)return;const cycles=phasesForBlock(catalog,block);phase.value=cycles.length===1?cycles[0]:'';message(get('harvest-message'),cycles.length===1?'Fase mengikuti GIS pada tanggal panen.':cycles.length>1?'Blok memiliki beberapa fase. Pilih fase panen yang sesuai.':'Fase GIS belum tersedia. Pilih fase setelah memeriksa data tanam.');}
-  catch(error){if(token===phaseRequest)message(get('harvest-message'),'Fase GIS belum dapat dimuat. Pilih fase setelah memeriksa data tanam.',true);}
-  finally{if(token===phaseRequest&&get('harvest-editor').open)get('harvest-save').disabled=false;}
+  const note=document.createElement('p');note.textContent='Total panen seluruh catatan per blok.';
+  const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),hr=document.createElement('tr');for(const x of ['Blok','Total panen (tandan / pokok)']){const th=document.createElement('th');th.textContent=x;hr.append(th);}head.append(hr);table.append(head);
+  const body=document.createElement('tbody');for(const r of [...(data.summary?.rows||[])].sort((a,b)=>String(a.blok||'').localeCompare(String(b.blok||''),'id',{numeric:true}))){const tr=document.createElement('tr');tr.insertCell().textContent=r.blok||'Belum diisi';tr.insertCell().textContent=r.value==null?'—':numberID.format(r.value);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
 }
 function showProgressMatrix(data, locations) {
   const host=get('progress-summary');host.replaceChildren();
@@ -208,7 +189,6 @@ const harvestFields = {
     { key: 'dibayar', label: 'Sudah dibayar (Rp)', type: 'number', step: 'any' },
   ],
   pisang_panen_pkk: [
-    { key: 'fase', label: 'Fase', options: ['PC', 'R1', 'R2', 'R3', 'R4'] },
     { key: 'pkk_panen', label: 'Tandan / pokok dipanen', type: 'number', required: true, step: '1' },
   ],
   pisang_box: [
@@ -546,7 +526,7 @@ async function refreshHarvest() {
   const sort = table === 'lahan_aktivitas' ? 'urutan' : table === 'pisang_bibit' ? '-tanggal_datang' : ['pisang_estimasi','lahan_target'].includes(table) ? '-bulan' : ['padi_rencana','lahan_rencana'].includes(table) ? '-mulai' : '-tanggal';
   const params = new URLSearchParams({ limit: pageSize, offset: harvestOffset, sort, summary:'1' });
   try {
-    const [data,catalog,milling] = await Promise.all([request('/api/records/' + table + '?' + params),table==='pisang_panen_pkk'?request('/api/harvest-phases').catch(()=>null):Promise.resolve(null),table==='padi_panen'?request('/api/records/padi_giling?limit=1&summary=1').catch(()=>null):Promise.resolve(null)]);
+    const [data,milling] = await Promise.all([request('/api/records/' + table + '?' + params),table==='padi_panen'?request('/api/records/padi_giling?limit=1&summary=1').catch(()=>null):Promise.resolve(null)]);
     if (harvestRequest !== token) return;
     const headings = [...(table==='lahan_aktivitas'?[]:[table === 'pisang_bibit' ? 'Tanggal datang' : ['pisang_estimasi','lahan_target'].includes(table) ? 'Bulan target' : table === 'padi_rencana' ? 'Minggu mulai' : table === 'lahan_rencana' ? 'Mulai' : 'Tanggal']), ...(['lahan_aktivitas', 'pisang_bibit', 'pisang_estimasi', 'padi_giling', 'padi_benih', 'iklim', 'pisang_penjualan'].includes(table) ? [] : ['Blok']), ...harvestFields[table].map(field => field.label), ...(table === 'padi_benih' ? ['Saldo varietas saat ini (kg)'] : table === 'pisang_bibit' ? ['Umur saat ini / lama sejak datang','Saldo batch (pokok)'] : table.endsWith('_penjualan') ? ['Total (Rp)'] : []), 'Keterangan', 'Aksi'];
     const header = document.createElement('tr');
@@ -572,7 +552,7 @@ async function refreshHarvest() {
       return tr;
     });
     get('harvest-rows').replaceChildren(...rows);
-    if(table==='pisang_box')showPackingSummary(get('harvest-summary'),data);else if(table==='pisang_panen_pkk')showBananaHarvestSummary(get('harvest-summary'),data,catalog);else if(table==='pisang_bibit')showNurserySummary(get('harvest-summary'),data);else if(table==='pisang_estimasi')showEstimateSummary(get('harvest-summary'),data);else if(table==='padi_panen')showRiceHarvestSummary(get('harvest-summary'),data,milling);else if(table==='iklim')showClimateGraphs(get('harvest-summary'),new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date()).slice(0,7));else showInputSummary(get('harvest-summary'),data);
+    if(table==='pisang_box')showPackingSummary(get('harvest-summary'),data);else if(table==='pisang_panen_pkk')showBananaHarvestSummary(get('harvest-summary'),data);else if(table==='pisang_bibit')showNurserySummary(get('harvest-summary'),data);else if(table==='pisang_estimasi')showEstimateSummary(get('harvest-summary'),data);else if(table==='padi_panen')showRiceHarvestSummary(get('harvest-summary'),data,milling);else if(table==='iklim')showClimateGraphs(get('harvest-summary'),new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta'}).format(new Date()).slice(0,7));else showInputSummary(get('harvest-summary'),data);
     get('harvest-range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada data';
     get('harvest-prev').disabled = data.offset === 0;
     get('harvest-next').disabled = data.offset + data.rows.length >= data.total;
@@ -582,7 +562,6 @@ async function refreshHarvest() {
 }
 
 async function openHarvestEditor(row = null) {
-  phaseRequest++;
   const form = get('harvest-entry');
   const table = get('harvest-type').value;
   harvestEditing = row;
@@ -626,7 +605,6 @@ async function openHarvestEditor(row = null) {
     return label;
   });
   get('harvest-fields').replaceChildren(...fields);
-  if(table==='pisang_panen_pkk')form.elements.fase.required=!row;
   message(get('harvest-message'), 'Memuat blok…');
   get('harvest-save').disabled = true;
   get('harvest-editor').showModal();
@@ -648,8 +626,6 @@ async function openHarvestEditor(row = null) {
   }
 }
 
-get('harvest-entry').elements.blok.addEventListener('change',updateHarvestPhase);
-get('harvest-entry').elements.tanggal.addEventListener('change',updateHarvestPhase);
 
 get('open-land-plans').addEventListener('click', () => {
   dashboard.hidden = true;
