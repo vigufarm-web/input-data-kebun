@@ -97,13 +97,22 @@ async function showClimateGraphs(element,month) {
     const [year,mo]=month.split('-').map(Number),end=new Date(Date.UTC(year,mo,0)).getUTCDate();
     const data=await request(`/api/climate?from=${month}-01&to=${month}-${String(end).padStart(2,'0')}`);if(!element.contains(graphs))return;
     const days=new Map(data.days.map(d=>[Number(d.tanggal.slice(-2)),d]));
-    for(const [heading,key,unit] of [['Curah hujan','hujan','mm'],['Suhu luar rata-rata','tavg','°C']]){
-      const h=document.createElement('h4');h.textContent=heading;graphs.append(h);const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 680 160');svg.setAttribute('role','img');svg.setAttribute('aria-label',heading+' harian, '+month);svg.style.cssText='width:100%;min-width:500px;height:160px';
-      const values=[...days.values()].map(d=>d[key]).filter(v=>v!=null&&Number.isFinite(Number(v))).map(Number);if(!values.length){const p=document.createElement('p');p.textContent='Belum ada data.';graphs.append(p);continue;}
-      const min=key==='hujan'?0:Math.min(0,...values),max=Math.max(1,...values),range=max-min||1;let previous=null;
-      for(let day=1;day<=end;day++){const v=days.get(day)?.[key];if(v==null||!Number.isFinite(Number(v))){previous=null;continue;}const x=35+(day-1)*620/Math.max(1,end-1),y=130-(Number(v)-min)/range*110;const el=document.createElementNS(svg.namespaceURI,key==='hujan'?'rect':'circle');if(key==='hujan'){el.setAttribute('x',x-5);el.setAttribute('y',y);el.setAttribute('width','10');el.setAttribute('height',130-y);}else{el.setAttribute('cx',x);el.setAttribute('cy',y);el.setAttribute('r','3');if(previous){const line=document.createElementNS(svg.namespaceURI,'line');for(const [k,vv] of Object.entries({x1:previous.x,y1:previous.y,x2:x,y2:y,stroke:'#c67331','stroke-width':'2'}))line.setAttribute(k,vv);svg.append(line);}previous={x,y};}el.setAttribute('fill',key==='hujan'?'#4186b0':'#c67331');const tip=document.createElementNS(svg.namespaceURI,'title');tip.textContent=`${day} ${month}: ${numberID.format(v)} ${unit}`;el.append(tip);svg.append(el);}
-      for(const [x,text] of [[35,'1'],[330,'15'],[650,String(end)]]){const label=document.createElementNS(svg.namespaceURI,'text');label.setAttribute('x',x);label.setAttribute('y','151');label.setAttribute('font-size','12');label.textContent=text;svg.append(label);}const scale=document.createElementNS(svg.namespaceURI,'text');scale.setAttribute('x','5');scale.setAttribute('y','15');scale.setAttribute('font-size','11');scale.textContent=numberID.format(max)+' '+unit;svg.append(scale);const scroll=document.createElement('div');scroll.style.overflowX='auto';scroll.append(svg);graphs.append(scroll);
+    const valid=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+    const rain=[...days.values()].map(d=>d.hujan).filter(valid).map(Number),temps=[...days.values()].map(d=>d.tavg).filter(valid).map(Number);
+    if(!rain.length&&!temps.length){graphs.textContent='Belum ada data.';return;}
+    const maxRain=Math.max(1,...rain),minTemp=Math.min(0,...temps),maxTemp=Math.max(minTemp+1,...temps);
+    const legend=document.createElement('p');legend.textContent='▮ Curah hujan (mm, skala kiri)　 ● Suhu luar rata-rata (°C, skala kanan)';graphs.append(legend);
+    const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 720 190');svg.setAttribute('role','img');svg.setAttribute('aria-label','Grafik gabungan curah hujan dan suhu luar harian, '+month);svg.style.cssText='width:100%;min-width:560px;height:190px';
+    const add=(tag,attrs,text)=>{const node=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));if(text!=null)node.textContent=text;svg.append(node);return node;};
+    add('text',{x:5,y:15,'font-size':11},numberID.format(maxRain)+' mm');add('text',{x:715,y:15,'font-size':11,'text-anchor':'end'},numberID.format(maxTemp)+' °C');add('text',{x:715,y:150,'font-size':11,'text-anchor':'end'},numberID.format(minTemp)+' °C');
+    let previous=null;
+    for(let day=1;day<=end;day++){
+      const x=40+(day-1)*640/Math.max(1,end-1),d=days.get(day),r=d?.hujan,t=d?.tavg;
+      if(valid(r)){const y=145-Number(r)/maxRain*120,node=add('rect',{x:x-4,y,width:8,height:Math.max(0,145-y),fill:'#4186b0'});const tip=document.createElementNS(ns,'title');tip.textContent=`${day} ${month}: ${numberID.format(r)} mm`;node.append(tip);}
+      if(valid(t)){const y=145-(Number(t)-minTemp)/(maxTemp-minTemp)*120;if(previous)add('line',{x1:previous.x,y1:previous.y,x2:x,y2:y,stroke:'#c67331','stroke-width':2});const node=add('circle',{cx:x,cy:y,r:3,fill:'#c67331'});const tip=document.createElementNS(ns,'title');tip.textContent=`${day} ${month}: ${numberID.format(t)} °C`;node.append(tip);previous={x,y};}else previous=null;
     }
+    for(const [x,text] of [[40,'1'],[360,'15'],[680,String(end)]])add('text',{x,y:175,'font-size':12,'text-anchor':'middle'},text);
+    const scroll=document.createElement('div');scroll.style.overflowX='auto';scroll.append(svg);graphs.append(scroll);
   }catch(error){graphs.textContent='Grafik belum dapat dimuat: '+error.message;}
 }
 function showBananaHarvestSummary(element,data) {
@@ -276,6 +285,27 @@ async function downloadExcel(table) {
   link.href = url; link.download = 'Data Kebun - ' + table + '.xlsx'; document.body.append(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+
+let checkedClimateFile=null;
+function resetClimateCheck(){checkedClimateFile=null;get('climate-apply').disabled=true;get('climate-result').replaceChildren();message(get('climate-status'),'');}
+get('climate-file').addEventListener('change',resetClimateCheck);
+async function climateUpload(preview){
+  const file=get('climate-file').files[0];
+  if(get('harvest-type').value!=='iklim'||!canUseTable('iklim'))throw Error('Akses Iklim diperlukan.');
+  if(!file||!file.name.toLowerCase().endsWith('.xlsx'))throw Error('Pilih template Excel Iklim (.xlsx).');
+  if(!preview&&checkedClimateFile!==file)throw Error('Periksa kembali file sebelum menerapkan.');
+  get('climate-preview').disabled=true;get('climate-apply').disabled=true;
+  try{
+    const response=await fetch(inputApi('/api/excel/upload?tables=iklim'+(preview?'&preview=1':'')),{method:'POST',credentials:'omit',headers:{Authorization:'Bearer '+sessionToken,'Content-Type':'application/octet-stream'},body:file});
+    const result=await response.json().catch(()=>null);if(!response.ok||!result||!Array.isArray(result.sheets))throw Error(result?.error||'File belum dapat diperiksa.');
+    const out=get('climate-result');out.replaceChildren();let errors=0,changes=0;
+    for(const sheet of result.sheets){errors+=Number(sheet.jumlahError)||0;changes+=(Number(sheet.tambah)||0)+(Number(sheet.ubah)||0);const p=document.createElement('p');p.textContent=`${sheet.sheet}: baru ${sheet.tambah}, revisi ${sheet.ubah}, kesalahan ${sheet.jumlahError}.`;out.append(p);for(const x of [...(sheet.errors||[]),...(sheet.peringatan||[])]){const line=document.createElement('p');line.textContent=typeof x==='string'?x:`Baris ${x.row}: ${x.msg}`;out.append(line);}for(const x of sheet.changes||[]){const line=document.createElement('p');line.textContent=`Baris ${x.row}, ${x.field}: ${x.before??'kosong'} → ${x.after??'kosong'}`;out.append(line);}}
+    if(preview){checkedClimateFile=errors||!changes?null:file;get('climate-apply').disabled=!checkedClimateFile;message(get('climate-status'),errors?'Ada kesalahan. Perbaiki file dan periksa ulang.':changes?'Periksa rincian sebelum menerapkan.':'Tidak ada perubahan.',!!errors);}
+    else{checkedClimateFile=null;message(get('climate-status'),errors?'Perubahan tidak diterapkan.':changes?'Perubahan tersimpan. Unduh template baru untuk revisi berikutnya.':'Tidak ada perubahan yang disimpan.',!!errors);if(!errors)await refreshHarvest();}
+  }finally{get('climate-preview').disabled=false;}
+}
+get('climate-preview').addEventListener('click',()=>{resetClimateCheck();climateUpload(true).catch(e=>message(get('climate-status'),e.message,true));});
+get('climate-apply').addEventListener('click',()=>climateUpload(false).catch(e=>message(get('climate-status'),e.message,true)));
 
 function renderRow(row) {
   const tr = document.createElement('tr');
@@ -676,10 +706,12 @@ get('open-climate').addEventListener('click', () => {
   get('harvest-description').textContent = 'Isi pembacaan alat per tanggal dan jam. Hujan harian menggunakan nilai kumulatif terbesar hari itu.';
   get('harvest-type-label').hidden = true;
   get('harvest-type').value = 'iklim';
+  get('climate-excel').hidden = false;
+  resetClimateCheck();
   harvestOffset = 0;
   refreshHarvest();
 });
-get('harvest-back').addEventListener('click', () => { harvestRequest = null; get('harvest').hidden = true; dashboard.hidden = false; });
+get('harvest-back').addEventListener('click', () => { harvestRequest = null; get('climate-excel').hidden = true; resetClimateCheck(); get('harvest').hidden = true; dashboard.hidden = false; });
 get('harvest-type').addEventListener('change', () => { harvestOffset = 0; refreshHarvest(); });
 get('harvest-prev').addEventListener('click', () => { harvestOffset = Math.max(0, harvestOffset - pageSize); refreshHarvest(); });
 get('harvest-next').addEventListener('click', () => { harvestOffset += pageSize; refreshHarvest(); });

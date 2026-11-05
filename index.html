@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Input Data Kebun · VIGU</title>
   <link rel="stylesheet" href="./style.css?v=20261104-ringkasan">
-  <script src="./app.js?v=20261104-progres-penuh" type="module"></script>
+  <script src="./app.js?v=20261105-iklim-excel" type="module"></script>
 </head>
 <body>
   <header>
@@ -53,6 +53,13 @@
         <label id="harvest-type-label">Jenis data <select id="harvest-type"><option value="lahan_target">Target Tanam</option><option value="lahan_rencana">Rencana Kerja</option><option value="lahan_aktivitas">Urutan Aktivitas</option><option value="pisang_panen_pkk">Panen Pisang</option><option value="pisang_box">Packing Pisang</option><option value="pisang_bibit">Stok Bibit Pisang</option><option value="pisang_estimasi">Estimasi Panen Pisang</option><option value="pisang_handclass">Hand Class Pisang</option><option value="padi_panen">Panen Padi</option><option value="padi_rencana">Rencana Mingguan Padi</option><option value="padi_giling">Penggilingan Padi</option><option value="padi_benih">Mutasi Benih Padi</option><option value="iklim">Iklim</option><option value="pisang_penjualan">Penjualan Pisang</option><option value="padi_penjualan">Penjualan Padi</option></select></label>
         <div class="bar"><button id="harvest-excel" type="button" class="secondary">Unduh Excel</button><button id="harvest-add" type="button">Tambah</button></div>
       </div>
+      <details id="climate-excel" hidden>
+        <summary>Update Iklim lewat Excel</summary>
+        <p>Unduh Excel terbaru. Untuk revisi, ubah baris lama tanpa mengubah ID dan versi; untuk data baru, tambahkan baris dengan ID dan versi kosong. Tanggal dan jam harus unik. Baris yang dihapus dari Excel tidak menghapus data di aplikasi.</p>
+        <label>File Excel Iklim <input id="climate-file" type="file" accept=".xlsx"></label>
+        <div class="bar"><button id="climate-preview" type="button" class="secondary">Periksa Excel</button><button id="climate-apply" type="button" disabled>Terapkan perubahan</button></div>
+        <p id="climate-status" role="status"></p><div id="climate-result"></div>
+      </details>
       <div id="harvest-summary" class="input-summary" aria-live="polite"></div>
       <div class="table-wrap input-table"><table><thead id="harvest-head"></thead><tbody id="harvest-rows"></tbody></table></div>
       <div class="bar"><button id="harvest-prev" class="secondary">Sebelumnya</button><span id="harvest-range"></span><button id="harvest-next" class="secondary">Berikutnya</button></div>
