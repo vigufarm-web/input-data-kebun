@@ -5,7 +5,7 @@
     "start": "node server.mjs",
     "start:demo": "node start-demo.mjs",
     "check": "node --check server.mjs && node --check app.js && node --check start-demo.mjs",
-    "test": "node test-permissions.mjs"
+    "test": "node test-permissions.mjs && node test-progress-matrix.mjs"
   },
   "engines": {
     "node": ">=22"
