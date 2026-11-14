@@ -121,15 +121,17 @@ function showBananaHarvestSummary(element,data) {
   const wrap=document.createElement('div');wrap.className='matrix-scroll';const table=document.createElement('table');table.className='progress-matrix';const head=document.createElement('thead'),hr=document.createElement('tr');for(const x of ['Blok','Total panen (tandan / pokok)']){const th=document.createElement('th');th.textContent=x;hr.append(th);}head.append(hr);table.append(head);
   const body=document.createElement('tbody');for(const r of [...(data.summary?.rows||[])].sort((a,b)=>String(a.blok||'').localeCompare(String(b.blok||''),'id',{numeric:true}))){const tr=document.createElement('tr');tr.insertCell().textContent=r.blok||'Belum diisi';tr.insertCell().textContent=r.value==null?'—':numberID.format(r.value);body.append(tr);}table.append(body);wrap.append(table);element.append(title,note,wrap);
 }
-function showProgressMatrix(data, locations) {
+function showProgressMatrix(data, locations, query = '') {
   const host=get('progress-summary');host.replaceChildren();
   const title=document.createElement('strong');title.textContent=`Ringkasan progres admin · ${numberID.format(data.total)} catatan`;
-  const note=document.createElement('p');note.textContent='Hektare dari input admin sesuai pencarian. Hijau: mencapai luas GIS. ↑ Baru: hasil terakhir disimpan di sesi ini. Laporan mandor dicatat di Daily.';
+  const note=document.createElement('p');note.textContent='Blok Pisang mengikuti GIS; — berarti belum ada hasil admin untuk tahap itu. Hektare sesuai pencarian. Hijau: mencapai luas GIS. ↑ Baru: hasil terakhir disimpan di sesi ini. Laporan mandor dicatat di Daily.';
   const wrap=document.createElement('div');wrap.className='matrix-scroll';
   const table=document.createElement('table');table.className='progress-matrix';
   const stages=['Land Clearing','Bajak 1','Dolomite','Bajak 2','Stik Ridger','Ridger','Install Drip','Stik Tanam','Tanam'];
   const head=document.createElement('tr');for(const label of ['Blok','Luas GIS (ha)',...stages]){const th=document.createElement('th');th.textContent=label;head.append(th);}const thead=document.createElement('thead');thead.append(head);table.append(thead);
   const areas=new Map(locations.filter(x=>x.blok_id).map(x=>[String(x.nama).toLowerCase(),Number(x.luas_ha)])),blocks=new Map();
+  const q=String(query).trim().toLowerCase();
+  for(const location of locations){const name=String(location.nama||'').trim(),key=name.toLowerCase();if(location.blok_id&&String(location.divisi||'').trim().toLowerCase()==='pisang'&&name&&(!q||key.includes(q)))blocks.set(key,{name,values:new Map()});}
   for(const row of data.summary?.rows||[]){const name=String(row.blok||'Belum diisi'),stage=stages.find(x=>x.toLowerCase()===String(row.aktivitas||'').toLowerCase());if(!stage)continue;const key=name.toLowerCase();if(!blocks.has(key))blocks.set(key,{name,values:new Map()});blocks.get(key).values.set(stage,row.value);}
   const tbody=document.createElement('tbody');for(const [key,block] of [...blocks].sort((a,b)=>a[1].name.localeCompare(b[1].name,'id',{numeric:true}))){const tr=document.createElement('tr'),area=areas.get(key);let cell=tr.insertCell();cell.textContent=block.name;cell=tr.insertCell();cell.textContent=area>0?areaFormat.format(area):'—';
     for(const stage of stages){cell=tr.insertCell();const value=block.values.get(stage);cell.textContent=value==null?'—':areaFormat.format(value);if(value!=null&&area>0&&Number(value)>=area-0.000001){cell.classList.add('stage-full');cell.title='Mencapai luas GIS';}if(recentlySaved?.table==='lahan_harian'&&String(recentlySaved.blok||'').toLowerCase()===key&&recentlySaved.aktivitas===stage){cell.classList.add('stage-recent');cell.textContent+=' ↑';cell.title='Baru disimpan';}}
@@ -358,7 +360,7 @@ async function refresh() {
     if (current !== pageRequest) return;
     if (!params.get('q')) get('progress-count').textContent = `${new Intl.NumberFormat('id-ID').format(data.total)} catatan`;
     get('rows').replaceChildren(...data.rows.map(renderRow));
-    showProgressMatrix(data,locations);
+    showProgressMatrix(data,locations,params.get('q'));
     get('range').textContent = data.total ? `${data.offset + 1}–${data.offset + data.rows.length} dari ${data.total}` : 'Belum ada hasil';
     get('previous').disabled = data.offset === 0;
     get('next').disabled = data.offset + data.rows.length >= data.total;
